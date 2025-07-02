@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { createBlob } from "~/utils/audio";
+import { createBlob, decodeAudioData } from "~/utils/audio";
 
 const AudioChat = () => {
   const [clientId, setClientId] = useState<string | null>(null);
@@ -57,9 +57,7 @@ const AudioChat = () => {
 
     processorRef.current?.disconnect();
     sourceRef.current?.disconnect();
-
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-
     await audioContextRef.current?.close();
 
     // Combine audio chunks
@@ -81,16 +79,15 @@ const AudioChat = () => {
     }
 
     try {
-      // Use your encoding utility to create base64 PCM audio
-      const audioBlob = createBlob(fullBuffer); // returns { data: base64string, mimeType }
-      const audioBase64 = audioBlob.data;
+      // Encode Float32 PCM buffer into base64 using your utility
+      const { data: audioBase64 } = createBlob(fullBuffer); // base64, mimeType: audio/pcm;rate=16000
 
       if (!clientId) {
         console.error("Client ID is missing");
         return;
       }
 
-      // Call backend API
+      // Send to backend
       const response = await fetch("http://localhost:3001/api/genai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,27 +95,29 @@ const AudioChat = () => {
       });
 
       if (!response.ok) {
-        console.error("Backend returned error", await response.text());
+        console.error("Backend error:", await response.text());
         return;
       }
 
-      const data = await response.json();
-
-      if (data.audioBase64) {
-        const audioBuffer = Uint8Array.from(atob(data.audioBase64), (c) =>
-          c.charCodeAt(0)
-        );
-        const audioResponseBlob = new Blob([audioBuffer], {
-          type: "audio/wav",
-        });
-        const url = URL.createObjectURL(audioResponseBlob);
-        const audio = new Audio(url);
-        audio.play();
-      } else {
+      const { audioBase64: responseBase64 } = await response.json();
+      if (!responseBase64) {
         console.error("No audioBase64 received from backend");
+        return;
       }
-    } catch (error) {
-      console.error("Error during API call or processing response:", error);
+
+      // Decode base64 to Uint8Array for playback
+      const decodedBytes = Uint8Array.from(atob(responseBase64), (c) =>
+        c.charCodeAt(0)
+      );
+      const ctx = new AudioContext({ sampleRate: 16000 });
+
+      const audioBuffer = await decodeAudioData(decodedBytes, ctx, 16000, 1);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start();
+    } catch (err) {
+      console.error("Failed to send or play response audio:", err);
     }
   };
 
