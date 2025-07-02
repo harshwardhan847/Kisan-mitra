@@ -1,11 +1,20 @@
 import React, { useRef, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { createBlob } from "~/utils/audio";
 
 const AudioChat = () => {
   const [clientId, setClientId] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  // Accumulate Float32Array chunks of audio PCM data
+  const audioChunksRef = useRef<Float32Array[]>([]);
 
   useEffect(() => {
-    // This runs only in the browser
     let id = localStorage.getItem("clientId");
     if (!id) {
       id = uuidv4();
@@ -14,61 +23,103 @@ const AudioChat = () => {
     setClientId(id);
   }, []);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-
-  const convertToBase64PCM = async (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64data = (reader.result as string).split(",")[1]; // strip 'data:...;base64,'
-        resolve(base64data);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob); // will trigger onloadend
-    });
-  };
-
   const startRecording = async () => {
+    if (isRecording) return;
+    setIsRecording(true);
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = recorder;
+    mediaStreamRef.current = stream;
+
+    const audioContext = new AudioContext({ sampleRate: 16000 });
+    audioContextRef.current = audioContext;
+
+    const source = audioContext.createMediaStreamSource(stream);
+    sourceRef.current = source;
+
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    processorRef.current = processor;
+
     audioChunksRef.current = [];
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    processor.onaudioprocess = (event) => {
+      const inputData = event.inputBuffer.getChannelData(0);
+      audioChunksRef.current.push(new Float32Array(inputData));
     };
 
-    recorder.onstop = async () => {
-      const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-      const base64 = await convertToBase64PCM(blob);
+    source.connect(processor);
+    processor.connect(audioContext.destination); // This line is important
 
-      const res = await fetch("http://localhost:3001/api/genai", {
+    console.log("Recording started");
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+
+    processorRef.current?.disconnect();
+    sourceRef.current?.disconnect();
+
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+
+    await audioContextRef.current?.close();
+
+    // Combine audio chunks
+    const totalLength = audioChunksRef.current.reduce(
+      (acc, chunk) => acc + chunk.length,
+      0
+    );
+    const fullBuffer = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of audioChunksRef.current) {
+      fullBuffer.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    console.log("Captured samples:", fullBuffer.length);
+    if (fullBuffer.length === 0) {
+      console.error("No audio data captured");
+      return;
+    }
+
+    try {
+      // Use your encoding utility to create base64 PCM audio
+      const audioBlob = createBlob(fullBuffer); // returns { data: base64string, mimeType }
+      const audioBase64 = audioBlob.data;
+
+      if (!clientId) {
+        console.error("Client ID is missing");
+        return;
+      }
+
+      // Call backend API
+      const response = await fetch("http://localhost:3001/api/genai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioBase64: base64, clientId }),
+        body: JSON.stringify({ audioBase64, clientId }),
       });
 
-      const { audioBase64 } = await res.json();
-      if (audioBase64) {
-        const audioBuffer = Uint8Array.from(atob(audioBase64), (c) =>
+      if (!response.ok) {
+        console.error("Backend returned error", await response.text());
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.audioBase64) {
+        const audioBuffer = Uint8Array.from(atob(data.audioBase64), (c) =>
           c.charCodeAt(0)
         );
-        const audioBlob = new Blob([audioBuffer], { type: "audio/wav" });
-        const url = URL.createObjectURL(audioBlob);
+        const audioResponseBlob = new Blob([audioBuffer], {
+          type: "audio/wav",
+        });
+        const url = URL.createObjectURL(audioResponseBlob);
         const audio = new Audio(url);
         audio.play();
+      } else {
+        console.error("No audioBase64 received from backend");
       }
-    };
-
-    recorder.start();
-    setTimeout(() => {
-      recorder.stop();
-      setIsRecording(false);
-    }, 4000);
-
-    setIsRecording(true);
+    } catch (error) {
+      console.error("Error during API call or processing response:", error);
+    }
   };
 
   if (!clientId) return <p>Loading...</p>;
@@ -78,6 +129,13 @@ const AudioChat = () => {
       <h2>🎙️ Gemini Audio Chat</h2>
       <button onClick={startRecording} disabled={isRecording}>
         {isRecording ? "Recording..." : "Start Recording"}
+      </button>
+      <button
+        onClick={stopRecording}
+        disabled={!isRecording}
+        style={{ marginLeft: "1rem" }}
+      >
+        Stop Recording
       </button>
     </div>
   );
