@@ -8,7 +8,7 @@ interface SearchResult {
   title: string;
 }
 
-function encode(bytes) {
+function encode(bytes: any) {
   let binary = "";
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
@@ -17,7 +17,7 @@ function encode(bytes) {
   return btoa(binary);
 }
 
-function decode(base64) {
+function decode(base64: any) {
   const binaryString = atob(base64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
@@ -187,7 +187,9 @@ const LiveAudio: React.FC = () => {
                   const source =
                     outputAudioContextRef.current.createBufferSource();
                   source.buffer = audioBuffer;
-                  source.connect(outputNode); // Connect to the reactive outputNode
+                  if (outputNode) {
+                    source.connect(outputNode); // Connect to the reactive outputNode
+                  }
                   source.addEventListener("ended", () => {
                     sourcesRef.current.delete(source);
                   });
@@ -385,7 +387,9 @@ const LiveAudio: React.FC = () => {
                     const source =
                       outputAudioContextRef.current.createBufferSource();
                     source.buffer = audioBuffer;
-                    source.connect(outputNode);
+                    if (outputNode) {
+                      source.connect(outputNode);
+                    }
                     source.addEventListener("ended", () => {
                       sourcesRef.current.delete(source);
                     });
