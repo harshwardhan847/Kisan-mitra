@@ -1,143 +1,542 @@
-import React, { useRef, useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { createBlob, decodeAudioData } from "~/utils/audio";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { GoogleGenAI, Modality } from "@google/genai"; // Session and LiveServerMessage are types, not directly imported as values
 
-const AudioChat = () => {
-  const [clientId, setClientId] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
+import type { Blob } from "@google/genai";
+// Define the interface for search results
+interface SearchResult {
+  uri: string;
+  title: string;
+}
 
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+function encode(bytes) {
+  let binary = "";
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
-  // Accumulate Float32Array chunks of audio PCM data
-  const audioChunksRef = useRef<Float32Array[]>([]);
+function decode(base64) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
-  useEffect(() => {
-    let id = localStorage.getItem("clientId");
-    if (!id) {
-      id = uuidv4();
-      localStorage.setItem("clientId", id);
+function createBlob(data: Float32Array): Blob {
+  const l = data.length;
+  const int16 = new Int16Array(l);
+  for (let i = 0; i < l; i++) {
+    // convert float32 -1 to 1 to int16 -32768 to 32767
+    int16[i] = data[i] * 32768;
+  }
+
+  return {
+    data: encode(new Uint8Array(int16.buffer)),
+    mimeType: "audio/pcm;rate=16000",
+  };
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number
+): Promise<AudioBuffer> {
+  const buffer = ctx.createBuffer(
+    numChannels,
+    data.length / 2 / numChannels,
+    sampleRate
+  );
+
+  const dataInt16 = new Int16Array(data.buffer);
+  const l = dataInt16.length;
+  const dataFloat32 = new Float32Array(l);
+  for (let i = 0; i < l; i++) {
+    dataFloat32[i] = dataInt16[i] / 32768.0;
+  }
+  // Extract interleaved channels
+  if (numChannels === 0) {
+    buffer.copyToChannel(dataFloat32, 0);
+  } else {
+    for (let i = 0; i < numChannels; i++) {
+      const channel = dataFloat32.filter(
+        (_, index) => index % numChannels === i
+      );
+      buffer.copyToChannel(channel, i);
     }
-    setClientId(id);
+  }
+
+  return buffer;
+}
+const LiveAudio: React.FC = () => {
+  // State variables for UI updates
+  const [isRecording, setIsRecording] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+
+  // Refs for mutable objects that don't trigger re-renders
+  const clientRef = useRef<GoogleGenAI | null>(null);
+  const sessionRef = useRef<any | null>(null); // Using 'any' for session due to complex type
+  const inputAudioContextRef = useRef<AudioContext | null>(null);
+  const outputAudioContextRef = useRef<AudioContext | null>(null);
+  const nextStartTimeRef = useRef(0);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const scriptProcessorNodeRef = useRef<ScriptProcessorNode | null>(null);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  // NEW: Ref to track recording state for onaudioprocess callback
+  const isRecordingRef = useRef(false);
+
+  // State for nodes passed to the visualizer (these need to be reactive)
+  const [inputNode, setInputNode] = useState<GainNode | null>(null);
+  const [outputNode, setOutputNode] = useState<GainNode | null>(null);
+
+  // Memoized callback for updating status
+  const updateStatus = useCallback((msg: string) => {
+    setStatus(msg);
   }, []);
 
-  const startRecording = async () => {
-    if (isRecording) return;
-    setIsRecording(true);
+  // Memoized callback for updating error
+  const updateError = useCallback((msg: string) => {
+    setError(msg);
+  }, []);
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaStreamRef.current = stream;
+  // Initialize audio contexts and gain nodes
+  useEffect(() => {
+    inputAudioContextRef.current = new (window.AudioContext ||
+      (window as any).webkitAudioContext)({ sampleRate: 16000 });
+    outputAudioContextRef.current = new (window.AudioContext ||
+      (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
-    const audioContext = new AudioContext({ sampleRate: 16000 });
-    audioContextRef.current = audioContext;
+    const inputGain = inputAudioContextRef.current.createGain();
+    const outputGain = outputAudioContextRef.current.createGain();
+    setInputNode(inputGain);
+    setOutputNode(outputGain);
 
-    const source = audioContext.createMediaStreamSource(stream);
-    sourceRef.current = source;
+    outputGain.connect(outputAudioContextRef.current.destination);
 
-    const processor = audioContext.createScriptProcessor(4096, 1, 1);
-    processorRef.current = processor;
+    nextStartTimeRef.current = outputAudioContextRef.current.currentTime;
 
-    audioChunksRef.current = [];
+    // Cleanup function for audio contexts
+    return () => {
+      inputAudioContextRef.current?.close();
+      outputAudioContextRef.current?.close();
+    };
+  }, []); // Run once on mount
 
-    processor.onaudioprocess = (event) => {
-      const inputData = event.inputBuffer.getChannelData(0);
-      audioChunksRef.current.push(new Float32Array(inputData));
+  // Initialize Gemini client and session
+  useEffect(() => {
+    if (!inputNode || !outputNode) return; // Wait for audio nodes to be initialized
+
+    clientRef.current = new GoogleGenAI({
+      apiKey: "AIzaSyCp1NWpaYSN2tACe9i3xSgsoeG0AjnZiIM", // Use REACT_APP_ prefix for client-side env vars
+    });
+
+    const initSession = async () => {
+      const model = "gemini-2.5-flash-preview-native-audio-dialog";
+
+      try {
+        const session = await clientRef.current?.live.connect({
+          model: model,
+          callbacks: {
+            onopen: () => {
+              updateStatus("Opened");
+            },
+            onmessage: async (message: any) => {
+              // Use 'any' for LiveServerMessage for simplicity here
+              const modelTurn = message.serverContent?.modelTurn;
+              const interrupted = message.serverContent?.interrupted;
+
+              if (
+                message.serverContent?.groundingMetadata?.groundingChunks
+                  ?.length
+              ) {
+                setSearchResults(
+                  message.serverContent.groundingMetadata.groundingChunks
+                    .map((chunk: any) => chunk.web)
+                    .filter(
+                      (web: any): web is SearchResult =>
+                        !!(web?.uri && web.title)
+                    )
+                );
+              } else {
+                setSearchResults([]); // Clear search results if none provided
+              }
+
+              const audio = modelTurn?.parts[0]?.inlineData;
+
+              if (audio && outputAudioContextRef.current) {
+                nextStartTimeRef.current = Math.max(
+                  nextStartTimeRef.current,
+                  outputAudioContextRef.current.currentTime
+                );
+
+                try {
+                  const audioBuffer = await decodeAudioData(
+                    decode(audio.data),
+                    outputAudioContextRef.current,
+                    24000,
+                    1
+                  );
+                  const source =
+                    outputAudioContextRef.current.createBufferSource();
+                  source.buffer = audioBuffer;
+                  source.connect(outputNode); // Connect to the reactive outputNode
+                  source.addEventListener("ended", () => {
+                    sourcesRef.current.delete(source);
+                  });
+
+                  source.start(nextStartTimeRef.current);
+                  nextStartTimeRef.current =
+                    nextStartTimeRef.current + audioBuffer.duration;
+                  sourcesRef.current.add(source);
+                } catch (audioDecodeError: any) {
+                  console.error(
+                    "Error decoding or playing audio:",
+                    audioDecodeError
+                  );
+                  updateError(
+                    `Audio playback error: ${audioDecodeError.message}`
+                  );
+                }
+              }
+
+              if (interrupted) {
+                for (const source of sourcesRef.current.values()) {
+                  source.stop();
+                  sourcesRef.current.delete(source);
+                }
+                nextStartTimeRef.current = 0;
+              }
+            },
+            onerror: (e: ErrorEvent) => {
+              updateError(e.message);
+            },
+            onclose: (e: CloseEvent) => {
+              updateStatus("Close:" + e.reason);
+            },
+          },
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
+              // languageCode: 'en-GB' // Uncomment if you need a specific language
+            },
+            tools: [{ googleSearch: {} }],
+          },
+        });
+        sessionRef.current = session;
+      } catch (e: any) {
+        console.error(e);
+        updateError(`Session connection error: ${e.message}`);
+      }
     };
 
-    source.connect(processor);
-    processor.connect(audioContext.destination); // This line is important
+    initSession();
 
-    console.log("Recording started");
-  };
+    // Cleanup function for the session
+    return () => {
+      sessionRef.current?.close();
+    };
+  }, [inputNode, outputNode, updateStatus, updateError]); // Re-run if input/output nodes change
 
-  const stopRecording = async () => {
-    setIsRecording(false);
-
-    processorRef.current?.disconnect();
-    sourceRef.current?.disconnect();
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    await audioContextRef.current?.close();
-
-    // Combine audio chunks
-    const totalLength = audioChunksRef.current.reduce(
-      (acc, chunk) => acc + chunk.length,
-      0
-    );
-    const fullBuffer = new Float32Array(totalLength);
-    let offset = 0;
-    for (const chunk of audioChunksRef.current) {
-      fullBuffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    console.log("Captured samples:", fullBuffer.length);
-    if (fullBuffer.length === 0) {
-      console.error("No audio data captured");
+  // Start Recording
+  const startRecording = async () => {
+    if (isRecording || !inputAudioContextRef.current || !inputNode) {
       return;
     }
 
+    inputAudioContextRef.current.resume();
+    updateStatus("Requesting microphone access...");
+
     try {
-      // Encode Float32 PCM buffer into base64 using your utility
-      const { data: audioBase64 } = createBlob(fullBuffer); // base64, mimeType: audio/pcm;rate=16000
-
-      if (!clientId) {
-        console.error("Client ID is missing");
-        return;
-      }
-
-      // Send to backend
-      const response = await fetch("http://localhost:3001/api/genai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioBase64, clientId }),
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
       });
+      mediaStreamRef.current = stream;
 
-      if (!response.ok) {
-        console.error("Backend error:", await response.text());
-        return;
-      }
+      updateStatus("Microphone access granted. Starting capture...");
 
-      const { audioBase64: responseBase64 } = await response.json();
-      if (!responseBase64) {
-        console.error("No audioBase64 received from backend");
-        return;
-      }
+      const sourceNode =
+        inputAudioContextRef.current.createMediaStreamSource(stream);
+      sourceNodeRef.current = sourceNode;
+      sourceNode.connect(inputNode); // Connect to the reactive inputNode
 
-      // Decode base64 to Uint8Array for playback
-      const decodedBytes = Uint8Array.from(atob(responseBase64), (c) =>
-        c.charCodeAt(0)
-      );
-      const ctx = new AudioContext({ sampleRate: 16000 });
+      const bufferSize = 256;
+      const scriptProcessorNode =
+        inputAudioContextRef.current.createScriptProcessor(bufferSize, 1, 1);
+      scriptProcessorNodeRef.current = scriptProcessorNode;
 
-      const audioBuffer = await decodeAudioData(decodedBytes, ctx, 16000, 1);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      source.start();
-    } catch (err) {
-      console.error("Failed to send or play response audio:", err);
+      // Set ref BEFORE updating state, so onaudioprocess sees the correct value immediately
+      isRecordingRef.current = true;
+      setIsRecording(true);
+
+      scriptProcessorNode.onaudioprocess = (audioProcessingEvent) => {
+        // Use the ref here to get the most current recording status
+        if (!isRecordingRef.current) return;
+
+        const inputBuffer = audioProcessingEvent.inputBuffer;
+        const pcmData = inputBuffer.getChannelData(0);
+
+        sessionRef.current?.sendRealtimeInput({ media: createBlob(pcmData) });
+      };
+
+      sourceNode.connect(scriptProcessorNode);
+      scriptProcessorNode.connect(inputAudioContextRef.current.destination);
+
+      updateStatus("🔴 Recording... Capturing PCM chunks.");
+    } catch (err: any) {
+      console.error("Error starting recording:", err);
+      updateStatus(`Error: ${err.message}`);
+      stopRecording(); // Attempt to stop if error occurs
     }
   };
 
-  if (!clientId) return <p>Loading...</p>;
+  // Stop Recording
+  const stopRecording = () => {
+    if (
+      !isRecording &&
+      !mediaStreamRef.current &&
+      !inputAudioContextRef.current
+    )
+      return;
+
+    updateStatus("Stopping recording...");
+
+    // Set ref BEFORE updating state
+    isRecordingRef.current = false;
+    setIsRecording(false); // Update state
+
+    if (
+      scriptProcessorNodeRef.current &&
+      sourceNodeRef.current &&
+      inputAudioContextRef.current
+    ) {
+      scriptProcessorNodeRef.current.disconnect();
+      sourceNodeRef.current.disconnect();
+    }
+
+    scriptProcessorNodeRef.current = null;
+    sourceNodeRef.current = null;
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+
+    updateStatus("Recording stopped. Click Start to begin again.");
+  };
+
+  // Reset Session
+  const reset = () => {
+    sessionRef.current?.close();
+    // Re-initialize session by triggering useEffect (or re-calling initSession if it were exposed)
+    // For simplicity, we'll re-connect the client which will re-init the session.
+    // In a real app, you might want a more controlled re-init.
+    if (clientRef.current) {
+      // Re-initialize the session directly
+      const initSessionAgain = async () => {
+        const model = "gemini-2.5-flash-preview-native-audio-dialog";
+        try {
+          const newSession = await clientRef.current?.live.connect({
+            model: model,
+            callbacks: {
+              onopen: () => updateStatus("Opened (re-initialized)"),
+              onmessage: async (message: any) => {
+                const modelTurn = message.serverContent?.modelTurn;
+                const interrupted = message.serverContent?.interrupted;
+
+                if (
+                  message.serverContent?.groundingMetadata?.groundingChunks
+                    ?.length
+                ) {
+                  setSearchResults(
+                    message.serverContent.groundingMetadata.groundingChunks
+                      .map((chunk: any) => chunk.web)
+                      .filter(
+                        (web: any): web is SearchResult =>
+                          !!(web?.uri && web.title)
+                      )
+                  );
+                } else {
+                  setSearchResults([]);
+                }
+
+                const audio = modelTurn?.parts[0]?.inlineData;
+                if (audio && outputAudioContextRef.current) {
+                  nextStartTimeRef.current = Math.max(
+                    nextStartTimeRef.current,
+                    outputAudioContextRef.current.currentTime
+                  );
+                  try {
+                    const audioBuffer = await decodeAudioData(
+                      decode(audio.data),
+                      outputAudioContextRef.current,
+                      24000,
+                      1
+                    );
+                    const source =
+                      outputAudioContextRef.current.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(outputNode);
+                    source.addEventListener("ended", () => {
+                      sourcesRef.current.delete(source);
+                    });
+                    source.start(nextStartTimeRef.current);
+                    nextStartTimeRef.current =
+                      nextStartTimeRef.current + audioBuffer.duration;
+                    sourcesRef.current.add(source);
+                  } catch (audioDecodeError: any) {
+                    console.error(
+                      "Error decoding or playing audio (re-init):",
+                      audioDecodeError
+                    );
+                    updateError(
+                      `Audio playback error (re-init): ${audioDecodeError.message}`
+                    );
+                  }
+                }
+                if (interrupted) {
+                  for (const source of sourcesRef.current.values()) {
+                    source.stop();
+                    sourcesRef.current.delete(source);
+                  }
+                  nextStartTimeRef.current = 0;
+                }
+              },
+              onerror: (e: ErrorEvent) => updateError(e.message),
+              onclose: (e: CloseEvent) =>
+                updateStatus("Close (re-init):" + e.reason),
+            },
+            config: {
+              responseModalities: [Modality.AUDIO],
+              speechConfig: {
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
+              },
+              tools: [{ googleSearch: {} }],
+            },
+          });
+          sessionRef.current = newSession;
+        } catch (e: any) {
+          console.error("Error re-initializing session:", e);
+          updateError(`Session re-init error: ${e.message}`);
+        }
+      };
+      initSessionAgain();
+    }
+
+    setSearchResults([]);
+    updateStatus("Session cleared and re-initialized.");
+  };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>🎙️ Gemini Audio Chat</h2>
-      <button onClick={startRecording} disabled={isRecording}>
-        {isRecording ? "Recording..." : "Start Recording"}
-      </button>
-      <button
-        onClick={stopRecording}
-        disabled={!isRecording}
-        style={{ marginLeft: "1rem" }}
+    <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
+      {/* Search Results Display */}
+      {searchResults.length > 0 && (
+        <div
+          id="search-results"
+          className="absolute top-5 left-5 z-10 bg-gray-800 bg-opacity-70 p-4 rounded-xl max-w-sm border border-gray-700 shadow-lg"
+        >
+          <h3 className="text-lg font-semibold mb-2 text-blue-300">Sources</h3>
+          <ul className="list-none p-0 m-0">
+            {searchResults.map((result, index) => (
+              <li key={index} className="mb-2 last:mb-0">
+                <a
+                  href={result.uri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-400 hover:underline text-sm block"
+                >
+                  {result.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center justify-center gap-4 z-10">
+        <div className="flex space-x-4">
+          <button
+            id="resetButton"
+            onClick={reset}
+            disabled={isRecording}
+            aria-label="Reset Session"
+            className="p-4 rounded-full bg-gray-700 text-white shadow-lg hover:bg-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hidden"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="24px"
+              viewBox="0 -960 960 960"
+              width="24px"
+              fill="#ffffff"
+            >
+              <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
+            </svg>
+          </button>
+          <button
+            id="startButton"
+            onClick={startRecording}
+            disabled={isRecording}
+            aria-label="Start Recording"
+            className="p-4 rounded-full bg-red-600 text-white shadow-lg hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg
+              viewBox="0 0 100 100"
+              width="32px"
+              height="32px"
+              fill="#ffffff"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="50" cy="50" r="50" />
+            </svg>
+          </button>
+          <button
+            id="stopButton"
+            onClick={stopRecording}
+            disabled={!isRecording}
+            aria-label="Stop Recording"
+            className="p-4 rounded-full bg-gray-300 text-gray-800 shadow-lg hover:bg-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg
+              viewBox="0 0 100 100"
+              width="32px"
+              height="32px"
+              fill="#000000"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect x="0" y="0" width="100" height="100" rx="15" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Status Display */}
+      <div
+        id="status"
+        className="absolute bottom-5 left-0 right-0 z-10 text-center text-lg font-medium text-blue-300"
       >
-        Stop Recording
-      </button>
+        {error ? `Error: ${error}` : status}
+      </div>
+
+      {/* 3D Visualizer Component */}
+      {inputNode && outputNode && (
+        <div>Visualizing</div>
+        // <gdm-live-audio-visuals-3d
+        //   .inputNode=${inputNode}
+        //   .outputNode=${outputNode}
+        // ></gdm-live-audio-visuals-3d>
+      )}
     </div>
   );
 };
 
-export default AudioChat;
+export default LiveAudio;
