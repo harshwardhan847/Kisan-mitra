@@ -1,5 +1,18 @@
 import { Type } from "@google/genai";
 
+export interface MarketData {
+  commodityName: string;
+  state: string;
+  district: string;
+  market: string;
+  arrival_date: string;
+  min_price: string;
+  max_price: string;
+  modal_price: string;
+  trends: string;
+  error?: string; // Optional error property
+}
+
 /**
  * Fetches real-time market data for a given commodity from the Mandi price API.
  * @param {string} commodityName - The name of the commodity (e.g., "Cabbage", "Potato").
@@ -13,7 +26,7 @@ export async function getMarketData(
   state?: string,
   district?: string,
   market?: string
-) {
+): Promise<MarketData> {
   const API_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"; // Replace with your actual API key
   const BASE_URL =
     "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
@@ -93,6 +106,7 @@ export async function getMarketData(
       trends: `Error fetching market data: ${
         error instanceof Error ? error.message : String(error)
       }`,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

@@ -2,6 +2,8 @@ import React, { useState, useCallback } from "react";
 import { useAudioContexts } from "~/hooks/useAudioContexts";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
+import PriceDetailsModal from "~/../components/PriceDetailsModal";
+import type { MarketData } from "tools/getMarketData";
 
 // Define SearchResult interface here if it's only used in this component,
 // or move it to a shared types file if used elsewhere.
@@ -15,10 +17,17 @@ const LiveAudio: React.FC = () => {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]); // State to display search results
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceModalData, setPriceModalData] = useState<MarketData | null>(null);
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
   const updateError = useCallback((msg: string) => setError(msg), []);
+
+  const handleMarketDataReceived = useCallback((data: MarketData) => {
+    setPriceModalData(data);
+    setShowPriceModal(true); // Open the modal
+  }, []);
 
   // Custom hook for AudioContexts and GainNodes
   const {
@@ -42,7 +51,13 @@ const LiveAudio: React.FC = () => {
     updateStatus,
     updateError,
     setSearchResults: setSearchResults, // Pass local state setter to update results from hook
+    onMarketDataReceived: handleMarketDataReceived,
   });
+
+  const handleClosePriceModal = useCallback(() => {
+    setShowPriceModal(false);
+    setPriceModalData(null); // Clear data when closed
+  }, []);
 
   // Custom hook for Audio Recording
   const { isRecording, startRecording, stopRecording } = useAudioRecording({
@@ -151,6 +166,12 @@ const LiveAudio: React.FC = () => {
         //   .inputNode=${inputNode}
         //   .outputNode=${outputNode}
         // ></gdm-live-audio-visuals-3d>
+      )}
+      {showPriceModal && priceModalData && (
+        <PriceDetailsModal
+          data={priceModalData}
+          onClose={handleClosePriceModal}
+        />
       )}
     </div>
   );

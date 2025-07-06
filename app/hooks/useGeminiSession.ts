@@ -4,6 +4,7 @@ import { decode, decodeAudioData } from "~/utils/audio";
 import {
   getMarketData,
   marketDataFunctionDeclaration,
+  type MarketData,
 } from "tools/getMarketData";
 
 // Define the interface for search results, moved here as it's directly used.
@@ -20,6 +21,7 @@ interface UseGeminiSessionProps {
   updateStatus: (msg: string) => void;
   updateError: (msg: string) => void;
   setSearchResults: (results: SearchResult[]) => void;
+  onMarketDataReceived: (data: MarketData) => void;
 }
 
 interface GeminiSessionHook {
@@ -36,6 +38,7 @@ export const useGeminiSession = ({
   updateStatus,
   updateError,
   setSearchResults,
+  onMarketDataReceived,
 }: UseGeminiSessionProps): GeminiSessionHook => {
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<any | null>(null);
@@ -98,14 +101,17 @@ export const useGeminiSession = ({
                       fc.args.district,
                       fc.args.market
                     );
+                    onMarketDataReceived(toolResult);
                   } else {
                     toolResult = {
                       error:
                         "Missing or invalid 'commodityName' argument for get_market_data.",
                     };
+                    onMarketDataReceived(toolResult);
                   }
                 } else {
                   toolResult = { error: `Unknown tool: ${fc.name}` };
+                  onMarketDataReceived(toolResult);
                 }
 
                 functionResponses.push({
@@ -201,6 +207,7 @@ export const useGeminiSession = ({
     nextStartTimeRef,
     updateStatus,
     updateError,
+    onMarketDataReceived,
   ]);
 
   useEffect(() => {
