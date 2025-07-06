@@ -185,9 +185,14 @@ const LiveAudio: React.FC = () => {
                   let toolResult: any;
 
                   // Execute the appropriate tool function based on fc.name
-                  if (fc.name === "get_price_details") {
-                    if (fc.args && typeof fc.args.product_name === "string") {
-                      toolResult = getMarketData(fc.args.product_name);
+                  if (fc.name === "get_market_data") {
+                    if (fc.args && typeof fc.args.commodityName === "string") {
+                      toolResult = getMarketData(
+                        fc.args.commodityName,
+                        fc.args.state,
+                        fc.args.district,
+                        fc.args.market
+                      );
                     } else {
                       toolResult = {
                         error:
