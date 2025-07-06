@@ -7,6 +7,7 @@ import {
   marketDataFunctionDeclaration,
   type MarketDataResult,
 } from "tools/getMarketData";
+import { useLanguage } from "../context/LanguageContext";
 
 // Define the interface for search results, moved here as it's directly used.
 interface SearchResult {
@@ -41,6 +42,7 @@ export const useGeminiSession = ({
   setSearchResults,
   onMarketDataReceived,
 }: UseGeminiSessionProps): GeminiSessionHook => {
+  const { currentLanguage } = useLanguage();
   const clientRef = useRef<GoogleGenAI | null>(null);
   const sessionRef = useRef<any | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
@@ -57,7 +59,7 @@ export const useGeminiSession = ({
     clientRef.current = new GoogleGenAI({ apiKey });
     const model = "gemini-live-2.5-flash-preview";
 
-    const systemInstructions = `You are **Kisan Mitra**, a multilingual AI agent built to assist Indian farmers across all states in their native or preferred languages.
+    const systemInstructions = `You are **Kisan Mitra**, a multilingual AI agent built to assist Indian farmers across all states in ${currentLanguage} languages.
 
 🗓️ Today’s Date: {{current_date}}  
 🕒 Local Time: {{current_time}} IST  
@@ -69,7 +71,7 @@ Your mission is to:
 3. Diagnose crop diseases from uploaded images and suggest cures.
 
 💬 Language Guidelines:
-- Always reply in the language **explicitly selected by the user**, or infer from the input language.
+- Always reply in the ${currentLanguage} language, or infer from the input language.
 - Use **regionally familiar agricultural terms**, idioms, and names of crops/tools.
 - Use **simple, practical, and respectful** tone for all explanations.
 - If technical terms don’t have a translation, **include both native term and English in brackets**.
@@ -229,6 +231,7 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
+            languageCode: currentLanguage, // Use language from context
           },
           tools: [
             {
@@ -254,6 +257,7 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
     updateStatus,
     updateError,
     onMarketDataReceived,
+    currentLanguage, // Add as dependency
   ]);
 
   useEffect(() => {

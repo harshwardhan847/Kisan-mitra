@@ -1,12 +1,11 @@
 import React, { useState, useCallback } from "react";
 import { useAudioContexts } from "~/hooks/useAudioContexts";
+import { useLanguage, LANGUAGE_OPTIONS } from "../context/LanguageContext";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
 import PriceDetailsModal from "~/../components/PriceDetailsModal";
 import type { MarketDataResult } from "tools/getMarketData";
 
-// Define SearchResult interface here if it's only used in this component,
-// or move it to a shared types file if used elsewhere.
 interface SearchResult {
   uri: string;
   title: string;
@@ -70,8 +69,32 @@ const LiveAudio: React.FC = () => {
     updateError,
   });
 
+  const { currentLanguage, setCurrentLanguage } = useLanguage();
+
   return (
     <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
+      {/* Language Selector */}
+      <div className="absolute top-5 right-5 z-20">
+        <label
+          htmlFor="language-select"
+          className="mr-2 text-blue-200 font-medium"
+        >
+          Language:
+        </label>
+        <select
+          id="language-select"
+          value={currentLanguage}
+          onChange={(e) => setCurrentLanguage(e.target.value)}
+          className="bg-gray-800 text-white rounded px-3 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.code} value={opt.code}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Search Results Display */}
       {searchResults.length > 0 && (
         <div
