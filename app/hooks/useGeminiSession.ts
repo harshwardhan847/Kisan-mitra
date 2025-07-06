@@ -8,6 +8,10 @@ import {
   type MarketDataResult,
 } from "tools/getMarketData";
 import { useLanguage } from "../context/LanguageContext";
+import {
+  compareStateMarketData,
+  compareStateMarketDataFunctionDeclaration,
+} from "tools/compareMandiPrices";
 
 // Define the interface for search results, moved here as it's directly used.
 interface SearchResult {
@@ -24,6 +28,7 @@ interface UseGeminiSessionProps {
   updateError: (msg: string) => void;
   setSearchResults: (results: SearchResult[]) => void;
   onMarketDataReceived: (data: MarketDataResult) => void;
+  setLoading?: (loading: { active: boolean; toolName?: string }) => void;
 }
 
 interface GeminiSessionHook {
@@ -41,6 +46,7 @@ export const useGeminiSession = ({
   updateError,
   setSearchResults,
   onMarketDataReceived,
+  setLoading,
 }: UseGeminiSessionProps): GeminiSessionHook => {
   const { currentLanguage } = useLanguage();
   const clientRef = useRef<GoogleGenAI | null>(null);
@@ -59,7 +65,7 @@ export const useGeminiSession = ({
     clientRef.current = new GoogleGenAI({ apiKey });
     const model = "gemini-live-2.5-flash-preview";
 
-    const systemInstructions = `You are **Kisan Mitra**, a multilingual AI agent built to assist Indian farmers across all states in ${currentLanguage} languages.
+    const systemInstructions = `You are **Kisan Mitra**, a multilingual AI agent built to assist Indian farmers across all states in their native or preferred languages.
 
 🗓️ Today’s Date: {{current_date}}  
 🕒 Local Time: {{current_time}} IST  
@@ -126,14 +132,14 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
 
             // Handle tool calls
             if (toolCall) {
+              if (setLoading)
+                setLoading({
+                  active: true,
+                  toolName: toolCall.functionCalls?.[0]?.name || "Tool",
+                });
               const functionResponses = [];
               for (const fc of toolCall.functionCalls) {
-                console.log(
-                  `Model called tool: ${fc.name} with args:`,
-                  fc.args
-                );
                 let toolResult: any;
-
                 if (fc.name === "get_market_data") {
                   if (fc.args && typeof fc.args.commodityName === "string") {
                     toolResult = await getMarketData(
@@ -145,7 +151,6 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                       fc.args.startDate,
                       fc.args.endDate
                     );
-                    console.log("getMarketData Tool Result:", toolResult);
                     onMarketDataReceived(toolResult);
                   } else {
                     toolResult = {
@@ -154,18 +159,44 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                     };
                     onMarketDataReceived(toolResult);
                   }
+                } else if (fc.name === "compare_state_market_data") {
+                  if (
+                    fc.args &&
+                    typeof fc.args.commodityName === "string" &&
+                    (Array.isArray(fc.args.states) ||
+                      Array.isArray(fc.args.district))
+                  ) {
+                    // Prefer states if present, else districts
+                    const regions =
+                      Array.isArray(fc.args.states) && fc.args.states.length > 0
+                        ? fc.args.states
+                        : fc.args.district;
+                    toolResult = await compareStateMarketData(
+                      fc.args.commodityName,
+                      regions,
+                      fc.args.arrivalDate,
+                      fc.args.startDate,
+                      fc.args.endDate
+                    );
+                    onMarketDataReceived(toolResult);
+                  } else {
+                    toolResult = {
+                      error:
+                        "Missing or invalid arguments for compare_state_market_data. Must provide commodityName and at least one of states or district.",
+                    };
+                    onMarketDataReceived(toolResult);
+                  }
                 } else {
                   toolResult = { error: `Unknown tool: ${fc.name}` };
                   onMarketDataReceived(toolResult);
                 }
-
                 functionResponses.push({
                   id: fc.id,
                   name: fc.name,
                   response: { result: toolResult },
                 });
               }
-              console.debug("Sending tool response...\n", functionResponses);
+              if (setLoading) setLoading({ active: false });
               sessionRef.current?.sendToolResponse({
                 functionResponses: functionResponses,
               });
@@ -236,7 +267,10 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
           tools: [
             {
               googleSearch: {},
-              functionDeclarations: [marketDataFunctionDeclaration],
+              functionDeclarations: [
+                marketDataFunctionDeclaration,
+                compareStateMarketDataFunctionDeclaration,
+              ],
             },
           ],
           systemInstruction: {

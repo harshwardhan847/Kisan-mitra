@@ -20,6 +20,10 @@ const LiveAudio: React.FC = () => {
   const [priceModalData, setPriceModalData] = useState<MarketDataResult | null>(
     null
   );
+  const [loading, setLoading] = useState<{
+    active: boolean;
+    toolName?: string;
+  }>({ active: false });
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
@@ -53,6 +57,7 @@ const LiveAudio: React.FC = () => {
     updateError,
     setSearchResults: setSearchResults, // Pass local state setter to update results from hook
     onMarketDataReceived: handleMarketDataReceived,
+    setLoading, // Pass loading setter to hook
   });
 
   const handleClosePriceModal = useCallback(() => {
@@ -73,6 +78,39 @@ const LiveAudio: React.FC = () => {
 
   return (
     <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
+      {/* Loading Overlay */}
+      {loading.active && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-60">
+          <div className="flex flex-col items-center">
+            <svg
+              className="animate-spin h-10 w-10 text-blue-400 mb-4"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            <div className="text-lg font-semibold text-blue-200">
+              {loading.toolName
+                ? `Processing: ${loading.toolName}`
+                : "Processing..."}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Language Selector */}
       <div className="absolute top-5 right-5 z-20">
         <label
