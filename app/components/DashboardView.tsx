@@ -1,8 +1,23 @@
-import React from "react";
+import React, { useRef } from "react";
 import type { MandiRecord, MarketDataResult } from "../../tools/getMarketData";
-
+import type { GovernmentSchemesResult } from "../../tools/getGovernmentSchemes";
+import type { CropDiseaseDiagnosis } from "../../tools/diagnoseCropDisease";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+// Recharts imports
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+
 interface StatCardProps {
   label: string;
   value: string | number;
@@ -72,15 +87,282 @@ const ChartCard: React.FC<ChartCardProps> = ({ data, groupBy = "Market" }) => {
   );
 };
 
+// RechartsChart: renders recharts chart based on chartType and chartData
+const RechartsChart: React.FC<{ chartType?: string; chartData?: any }> = ({
+  chartType,
+  chartData,
+}) => {
+  if (!chartType || !chartData || chartData.length === 0) return null;
+  if (chartType === "line") {
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey="modal"
+            stroke="#4f8cff"
+            name="Modal Price"
+          />
+          <Line
+            type="monotone"
+            dataKey="min"
+            stroke="#82ca9d"
+            name="Min Price"
+          />
+          <Line
+            type="monotone"
+            dataKey="max"
+            stroke="#ff7300"
+            name="Max Price"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }
+  if (chartType === "bar") {
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="market" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="modal" fill="#4f8cff" name="Modal Price" />
+          <Bar dataKey="min" fill="#82ca9d" name="Min Price" />
+          <Bar dataKey="max" fill="#ff7300" name="Max Price" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+  if (chartType === "grouped-bar") {
+    // For grouped bar, keys are all markets except 'date'
+    const keys = Object.keys(chartData[0] || {}).filter((k) => k !== "date");
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          {keys.map((key, idx) => (
+            <Bar
+              key={key}
+              dataKey={key}
+              fill={["#4f8cff", "#82ca9d", "#ff7300", "#8884d8"][idx % 4]}
+              name={key}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+  return null;
+};
+
 interface DashboardViewProps {
   results: (MarketDataResult | Record<string, MarketDataResult>)[];
 }
 
+const SchemeCard: React.FC<{ result: GovernmentSchemesResult }> = ({
+  result,
+}) => (
+  <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-green-900">
+    <div className="text-green-300 text-lg mb-2 font-semibold">
+      Government Schemes
+    </div>
+    <div className="mb-2 text-blue-100">{result.summary}</div>
+    {result.schemes && result.schemes.length > 0 ? (
+      <ul className="space-y-3">
+        {result.schemes.map((scheme, i) => (
+          <li key={i} className="bg-gray-800 rounded p-3">
+            <div className="font-bold text-green-200">{scheme.name}</div>
+            <div className="text-blue-100 text-sm mb-1">{scheme.summary}</div>
+            <div className="text-xs text-blue-300 mb-1">
+              Category: {scheme.category}
+            </div>
+            <a
+              href={scheme.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 underline text-xs"
+            >
+              Apply / More Info
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <div className="text-yellow-300 text-sm mt-2">
+        No schemes found. Please contact your nearest KVK or CSC for help.
+      </div>
+    )}
+  </div>
+);
+
+const DiseaseCard: React.FC<{ result: CropDiseaseDiagnosis }> = ({
+  result,
+}) => (
+  <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-red-900">
+    <div className="text-red-300 text-lg mb-2 font-semibold">
+      Crop Disease Diagnosis
+    </div>
+    <div className="mb-2">
+      <span className="font-bold text-red-200">Disease:</span>{" "}
+      {result.diseaseName}
+    </div>
+    <div className="mb-2">
+      <span className="font-bold text-blue-200">Cause:</span> {result.cause}
+    </div>
+    <div className="mb-2">
+      <span className="font-bold text-green-200">Treatment Steps:</span>
+      <ul className="list-disc ml-6 text-blue-100">
+        {result.treatment.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
+      </ul>
+    </div>
+    {result.warnings && result.warnings.length > 0 && (
+      <div className="mb-2">
+        <span className="font-bold text-yellow-300">Warnings:</span>
+        <ul className="list-disc ml-6 text-yellow-200">
+          {result.warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+);
+
+const DiagnoseCropDiseaseInput: React.FC<{
+  onImageSelected: (imageUrl: string) => void;
+}> = ({ onImageSelected }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          onImageSelected(ev.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center mb-4">
+      <div className="text-red-200 text-lg font-semibold mb-2">
+        Diagnose Crop Disease
+      </div>
+      <button
+        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mb-2"
+        onClick={handleButtonClick}
+      >
+        Upload or Take Photo
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+      <div className="text-xs text-gray-400">
+        Take a clear photo of the affected plant part for best results.
+      </div>
+    </div>
+  );
+};
+
 const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
+  const [pendingImage, setPendingImage] = React.useState<string | null>(null);
   // Render each result as a chat bubble/card, oldest at top
+  const handleImageSelected = (imageUrl: string) => {
+    setPendingImage(imageUrl);
+    // You should call the diagnoseCropDisease tool here, e.g. via a prop or context
+    // For now, just set the image as pending; integration with tool invocation is needed
+  };
   return (
     <div className="w-full flex flex-col items-center gap-6 max-h-[80vh] overflow-y-scroll">
+      {/* Diagnose Crop Disease input always at the top */}
+      <DiagnoseCropDiseaseInput onImageSelected={handleImageSelected} />
+      {pendingImage && (
+        <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center">
+          <div className="text-red-200 font-semibold mb-2">Preview</div>
+          <img
+            src={pendingImage}
+            alt="Selected crop disease"
+            className="max-h-64 rounded mb-2"
+          />
+          <div className="text-xs text-gray-400 mb-2">
+            Image ready for analysis. (Integrate with tool call to analyze.)
+          </div>
+        </div>
+      )}
       {results.map((result, chatIdx) => {
+        // Defensive: skip null/undefined
+        if (!result) return null;
+        // Defensive: avoid misdetection for object-wrapped market data
+        if (
+          typeof result === "object" &&
+          result !== null &&
+          Object.prototype.hasOwnProperty.call(result, "schemes") &&
+          Array.isArray((result as any).schemes) &&
+          Object.prototype.hasOwnProperty.call(result, "summary") &&
+          typeof (result as any).summary === "string" &&
+          Object.prototype.hasOwnProperty.call(result, "language")
+        ) {
+          return (
+            <SchemeCard
+              key={chatIdx}
+              result={result as unknown as GovernmentSchemesResult}
+            />
+          );
+        }
+        if (
+          typeof result === "object" &&
+          result !== null &&
+          Object.prototype.hasOwnProperty.call(result, "diseaseName") &&
+          typeof (result as any).diseaseName === "string" &&
+          Object.prototype.hasOwnProperty.call(result, "cause") &&
+          typeof (result as any).cause === "string" &&
+          Object.prototype.hasOwnProperty.call(result, "treatment") &&
+          Array.isArray((result as any).treatment) &&
+          Object.prototype.hasOwnProperty.call(result, "warnings") &&
+          Array.isArray((result as any).warnings) &&
+          Object.prototype.hasOwnProperty.call(result, "language")
+        ) {
+          return (
+            <DiseaseCard
+              key={chatIdx}
+              result={result as unknown as CropDiseaseDiagnosis}
+            />
+          );
+        }
         const resultsArr = Array.isArray(result)
           ? result
           : typeof result === "object" && !("records" in result)
@@ -191,7 +473,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                 />
                 <StatCard label="Records" value={records.length} />
               </div>
-              <ChartCard
+              {/* <ChartCard
                 data={records}
                 groupBy={
                   records.length > 0 &&
@@ -199,6 +481,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                     ? "Market"
                     : "State"
                 }
+              /> */}
+              <RechartsChart
+                chartType={res.chartType}
+                chartData={res.chartData}
               />
               {res.summary && (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>

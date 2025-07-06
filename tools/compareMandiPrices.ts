@@ -14,7 +14,13 @@ export async function compareStateMarketData(
   startDate?: string,
   endDate?: string,
   previousChats?: MarketDataResult[] // NEW: pass previous chat data for context
-): Promise<{ records: MandiRecord[]; summary: string; error?: string }> {
+): Promise<{
+  records: MandiRecord[];
+  summary: string;
+  error?: string;
+  chartType?: string;
+  chartData?: any;
+}> {
   // Use language from context
   let languageCode = "hi-IN";
   try {
@@ -97,6 +103,57 @@ export async function compareStateMarketData(
     }
   }
 
+  // --- Chart Data Generation for Recharts ---
+  let chartType: string | undefined = undefined;
+  let chartData: any = undefined;
+  if (allRecords.length > 0) {
+    const uniqueStates = Array.from(new Set(allRecords.map((r) => r.State)));
+    const uniqueDates = Array.from(
+      new Set(allRecords.map((r) => r.Arrival_Date))
+    );
+    if (uniqueStates.length > 1 && uniqueDates.length === 1) {
+      // Bar chart: compare states for a single day
+      chartType = "bar";
+      chartData = allRecords.map((r) => ({
+        state: r.State,
+        modal: parseFloat(r.Modal_Price),
+        min: parseFloat(r.Min_Price),
+        max: parseFloat(r.Max_Price),
+      }));
+    } else if (uniqueStates.length > 1 && uniqueDates.length > 1) {
+      // Grouped bar: state vs date
+      chartType = "grouped-bar";
+      chartData = uniqueDates.map((date) => {
+        const entry: any = { date };
+        uniqueStates.forEach((state) => {
+          const rec = allRecords.find(
+            (r) => r.State === state && r.Arrival_Date === date
+          );
+          entry[state] = rec ? parseFloat(rec.Modal_Price) : null;
+        });
+        return entry;
+      });
+    } else if (uniqueStates.length === 1 && uniqueDates.length > 1) {
+      // Line chart: price trend for a single state
+      chartType = "line";
+      chartData = allRecords.map((r) => ({
+        date: r.Arrival_Date,
+        modal: parseFloat(r.Modal_Price),
+        min: parseFloat(r.Min_Price),
+        max: parseFloat(r.Max_Price),
+      }));
+    } else {
+      // Fallback: single record, show as bar
+      chartType = "bar";
+      chartData = allRecords.map((r) => ({
+        state: r.State,
+        modal: parseFloat(r.Modal_Price),
+        min: parseFloat(r.Min_Price),
+        max: parseFloat(r.Max_Price),
+      }));
+    }
+  }
+
   // Compose a single Gemini prompt for all states
   let summary = `No records found for the selected states during ${displayRange}.`;
   if (allRecords.length > 0) {
@@ -135,7 +192,10 @@ $${
       console.warn(`Gemini failed for compareStateMarketData`, err);
     }
   }
-  return { records: allRecords, summary };
+  if (allRecords.length > 0) {
+    return { records: allRecords, summary, chartType, chartData };
+  }
+  return { records: allRecords, summary, chartType, chartData };
 }
 
 export const compareStateMarketDataFunctionDeclaration = {

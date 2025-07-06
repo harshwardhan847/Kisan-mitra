@@ -35,6 +35,8 @@ export interface MarketDataResult {
   records: MandiRecord[]; // Array of fetched records (now using MandiRecord)
   summary: string; // The AI-generated summary/trends based on the records
   error?: string; // This is where the overall function error should be (already present)
+  chartType?: string; // e.g. 'bar', 'line', 'grouped-bar', etc.
+  chartData?: any; // Data structure for recharts
 }
 
 export async function getMarketData(
@@ -216,11 +218,66 @@ export async function getMarketData(
   let aiSummary =
     "No specific market insights could be generated for the provided data range/date.";
 
+  // --- Chart Data Generation for Recharts ---
+  let chartType: string | undefined = undefined;
+  let chartData: any = undefined;
+  if (fetchedRecords.length > 0) {
+    // If single market or single day, show price over time (line chart)
+    const uniqueMarkets = Array.from(
+      new Set(fetchedRecords.map((r) => r.Market))
+    );
+    const uniqueDates = Array.from(
+      new Set(fetchedRecords.map((r) => r.Arrival_Date))
+    );
+    if (uniqueMarkets.length === 1 && uniqueDates.length > 1) {
+      chartType = "line";
+      chartData = fetchedRecords.map((r) => ({
+        date: r.Arrival_Date,
+        modal: parseFloat(r.Modal_Price),
+        min: parseFloat(r.Min_Price),
+        max: parseFloat(r.Max_Price),
+      }));
+    } else if (uniqueMarkets.length > 1 && uniqueDates.length === 1) {
+      // Compare markets for a single day (bar chart)
+      chartType = "bar";
+      chartData = fetchedRecords.map((r) => ({
+        market: r.Market,
+        modal: parseFloat(r.Modal_Price),
+        min: parseFloat(r.Min_Price),
+        max: parseFloat(r.Max_Price),
+      }));
+    } else if (uniqueMarkets.length > 1 && uniqueDates.length > 1) {
+      // Grouped bar: market vs date
+      chartType = "grouped-bar";
+      chartData = uniqueDates.map((date) => {
+        const entry: any = { date };
+        uniqueMarkets.forEach((market) => {
+          const rec = fetchedRecords.find(
+            (r) => r.Market === market && r.Arrival_Date === date
+          );
+          entry[market] = rec ? parseFloat(rec.Modal_Price) : null;
+        });
+        return entry;
+      });
+    } else {
+      // Fallback: single record, show as bar
+      chartType = "bar";
+      chartData = fetchedRecords.map((r) => ({
+        market: r.Market,
+        modal: parseFloat(r.Modal_Price),
+        min: parseFloat(r.Min_Price),
+        max: parseFloat(r.Max_Price),
+      }));
+    }
+  }
+
   // If only today's price is requested, skip AI summary and return data directly
   if (isTodayOnly) {
     return {
       records: fetchedRecords,
       summary: "",
+      chartType,
+      chartData,
     };
   }
 
@@ -286,6 +343,8 @@ $${
   return {
     records: fetchedRecords,
     summary: aiSummary,
+    chartType,
+    chartData,
   };
 }
 

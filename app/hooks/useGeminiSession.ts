@@ -12,6 +12,14 @@ import {
   compareStateMarketData,
   compareStateMarketDataFunctionDeclaration,
 } from "tools/compareMandiPrices";
+import {
+  getGovernmentSchemes,
+  getGovernmentSchemesFunctionDeclaration,
+} from "tools/getGovernmentSchemes";
+import {
+  diagnoseCropDisease,
+  diagnoseCropDiseaseFunctionDeclaration,
+} from "tools/diagnoseCropDisease";
 
 // Define the interface for search results, moved here as it's directly used.
 interface SearchResult {
@@ -187,6 +195,37 @@ keep the conversation concise and to the point like a real chat.
                     };
                     onMarketDataReceived(toolResult);
                   }
+                } else if (fc.name === "get_government_schemes") {
+                  if (
+                    fc.args &&
+                    typeof fc.args.query === "string" &&
+                    typeof fc.args.location === "string"
+                  ) {
+                    toolResult = await getGovernmentSchemes(
+                      fc.args.query,
+                      fc.args.location,
+                      currentLanguage
+                    );
+                  } else {
+                    toolResult = {
+                      error:
+                        "Missing or invalid arguments for get_government_schemes. Must provide query and location.",
+                    };
+                  }
+                  onMarketDataReceived(toolResult);
+                } else if (fc.name === "diagnose_crop_disease") {
+                  if (fc.args && typeof fc.args.image === "string") {
+                    toolResult = await diagnoseCropDisease(
+                      fc.args.image,
+                      currentLanguage
+                    );
+                  } else {
+                    toolResult = {
+                      error:
+                        "Missing or invalid arguments for diagnose_crop_disease. Must provide image.",
+                    };
+                  }
+                  onMarketDataReceived(toolResult);
                 } else {
                   toolResult = { error: `Unknown tool: ${fc.name}` };
                   onMarketDataReceived(toolResult);
@@ -271,6 +310,8 @@ keep the conversation concise and to the point like a real chat.
               functionDeclarations: [
                 marketDataFunctionDeclaration,
                 compareStateMarketDataFunctionDeclaration,
+                getGovernmentSchemesFunctionDeclaration,
+                diagnoseCropDiseaseFunctionDeclaration,
               ],
             },
           ],
