@@ -20,7 +20,7 @@ const PriceDetailsModal: React.FC<PriceDetailsModalProps> = ({
       <div className="bg-gray-800 max-h-[90vh] overflow-scroll text-white rounded-lg shadow-xl p-6 w-full max-w-[90%] border border-gray-700 relative">
         <button
           onClick={onClose}
-          className="sticky top-3 left-3 text-gray-400 hover:text-gray-200 text-2xl font-bold"
+          className="absolute flex items-end justify-end top-3 right-3 text-gray-400 hover:text-gray-200 text-2xl font-bold"
           aria-label="Close"
         >
           &times;

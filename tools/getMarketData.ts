@@ -2,7 +2,7 @@
 import { Type, GoogleGenAI } from "@google/genai"; // Corrected import
 
 // Helper to format a Date object into DD/MM/YYYY
-function formatDateToDDMMYYYY(date: Date): string {
+export function formatDateToDDMMYYYY(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
   const year = date.getFullYear();
@@ -23,7 +23,7 @@ export interface MandiRecord {
   Min_Price: string; // Matches API key
   Max_Price: string; // Matches API key
   Modal_Price: string; // Matches API key
-  Commodity_Code: string; // Matches API key
+  Commodity_Code: string; // Matches API key - Note: This field is not consistently present in both APIs, but kept for existing structure.
   // The 'error' field does NOT belong in this interface.
   // This interface describes a *successful* data record from the API.
   // Overall function errors are handled by MarketDataResult.error.
@@ -38,7 +38,6 @@ export interface MarketDataResult {
 
 export async function getMarketData(
   commodityName: string,
-
   state?: string,
   district?: string,
   market?: string,
@@ -48,14 +47,20 @@ export async function getMarketData(
 ): Promise<MarketDataResult> {
   const MANDI_API_KEY =
     "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"; // Your API key
-  const BASE_URL =
+  const HISTORICAL_BASE_URL =
     "https://api.data.gov.in/resource/35985678-0d79-46b4-9ed6-6f13308a1d24";
+  const TODAY_BASE_URL =
+    "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
+
   const geminiApiKey: string = "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo";
 
   console.log("Called: MarketDataTool");
 
   let datesToFetch: Date[] = [];
   let displayDateRange: string; // Used in the Gemini prompt to indicate the analyzed period
+
+  const today = new Date();
+  const todayFormatted = formatDateToDDMMYYYY(today);
 
   // --- Date Parsing Logic ---
   if (startDate && endDate) {
@@ -113,22 +118,42 @@ export async function getMarketData(
   // --- Fetching Data for Each Date in the Range ---
   for (const date of datesToFetch) {
     const formattedDate = formatDateToDDMMYYYY(date);
-    // Mandi API URL construction
-    let url = `${BASE_URL}?api-key=${MANDI_API_KEY}&format=json&limit=10`; // Use limit=10 per day as in your example
+    let url: string;
+    let isTodayApi = false;
+
+    // Determine which API to use based on the date
+    if (formattedDate === todayFormatted) {
+      url = `${TODAY_BASE_URL}?api-key=${MANDI_API_KEY}&format=json&limit=3`; // Use limit=10 per day as in your example
+      isTodayApi = true;
+    } else {
+      url = `${HISTORICAL_BASE_URL}?api-key=${MANDI_API_KEY}&format=json&limit=3`; // Use limit=10 per day as in your example
+    }
 
     if (state) {
-      url += `&filters[State]=${encodeURIComponent(state)}`;
+      url += `&filters[${isTodayApi ? "state" : "State"}]=${encodeURIComponent(
+        state
+      )}`;
     }
     if (district) {
-      url += `&filters[District]=${encodeURIComponent(district)}`;
+      url += `&filters[${
+        isTodayApi ? "district" : "District"
+      }]=${encodeURIComponent(district)}`;
     }
     if (market) {
-      url += `&filters[Market]=${encodeURIComponent(market)}`;
+      url += `&filters[${
+        isTodayApi ? "market" : "Market"
+      }]=${encodeURIComponent(market)}`;
     }
     if (commodityName) {
-      url += `&filters[Commodity]=${encodeURIComponent(commodityName)}`;
+      url += `&filters[${
+        isTodayApi ? "commodity" : "Commodity"
+      }]=${encodeURIComponent(commodityName)}`;
     }
-    url += `&filters[Arrival_Date]=${encodeURIComponent(formattedDate)}`;
+
+    // Only add arrival date filter for the historical API
+    if (!isTodayApi) {
+      url += `&filters[Arrival_Date]=${encodeURIComponent(formattedDate)}`;
+    }
 
     try {
       const response = await fetch(url, {
@@ -144,8 +169,28 @@ export async function getMarketData(
 
       const data = await response.json();
       if (data.records && data.records.length > 0) {
-        // Direct push works because MandiRecord properties now match API response keys
-        fetchedRecords.push(...data.records);
+        if (isTodayApi) {
+          // Map the today's API response to MandiRecord structure
+          const mappedRecords: MandiRecord[] = data.records.map(
+            (record: any) => ({
+              State: record.state,
+              District: record.district,
+              Market: record.market,
+              Commodity: record.commodity,
+              Variety: record.variety,
+              Grade: record.grade,
+              Arrival_Date: record.arrival_date,
+              Min_Price: record.min_price,
+              Max_Price: record.max_price,
+              Modal_Price: record.modal_price,
+              Commodity_Code: "", // The new API doesn't have this, so leave as empty string
+            })
+          );
+          fetchedRecords.push(...mappedRecords);
+        } else {
+          // Direct push for historical API as properties already match
+          fetchedRecords.push(...data.records);
+        }
       }
     } catch (error) {
       console.error(`Error fetching data for ${formattedDate}:`, error);
@@ -265,7 +310,7 @@ export const marketDataFunctionDeclaration = {
       arrivalDate: {
         type: Type.STRING,
         description:
-          "Optional: A specific arrival date for the commodity in **DD/MM/YYYY** format (e.g., '06/07/2025'). This parameter should NOT be used if `startDate` and `endDate` are provided. The model can infer this from relative terms like 'today', 'yesterday', 'tomorrow', 'last Monday', 'two days ago', or a specific date like 'July 1st'.",
+          "Optional: A specific arrival date for the commodity in **DD/MM/YYYY** format (e.g., '06/07/2025'). This parameter should NOT be used if `startDate` and `endDate` are provided. The model can infer this from relative terms like 'today', 'yesterday', 'tomorrow', 'last Monday', 'two days ago', or a specific date like 'July 1st'. don't send these directly:-'today', 'yesterday', 'tomorrow', 'last Monday', 'two days ago', or a specific date like 'July 1st'. these must be converted to a specific date.",
       },
       startDate: {
         type: Type.STRING,
