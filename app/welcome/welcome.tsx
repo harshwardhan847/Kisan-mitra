@@ -3,7 +3,7 @@ import { useAudioContexts } from "~/hooks/useAudioContexts";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
 import PriceDetailsModal from "~/../components/PriceDetailsModal";
-import type { MarketData } from "tools/getMarketData";
+import type { MarketDataResult } from "tools/getMarketData";
 
 // Define SearchResult interface here if it's only used in this component,
 // or move it to a shared types file if used elsewhere.
@@ -18,13 +18,15 @@ const LiveAudio: React.FC = () => {
   const [error, setError] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]); // State to display search results
   const [showPriceModal, setShowPriceModal] = useState(false);
-  const [priceModalData, setPriceModalData] = useState<MarketData | null>(null);
+  const [priceModalData, setPriceModalData] = useState<MarketDataResult | null>(
+    null
+  );
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
   const updateError = useCallback((msg: string) => setError(msg), []);
 
-  const handleMarketDataReceived = useCallback((data: MarketData) => {
+  const handleMarketDataReceived = useCallback((data: MarketDataResult) => {
     setPriceModalData(data);
     setShowPriceModal(true); // Open the modal
   }, []);
@@ -44,7 +46,7 @@ const LiveAudio: React.FC = () => {
     resetSession,
     searchResults: geminiSearchResults, // Rename to avoid conflict with local state
   } = useGeminiSession({
-    apiKey: "AIzaSyDCqasCwuuhtwiV20TpD0AgzqaYV4elT-U", // Replace with your actual API key
+    apiKey: "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo", // Replace with your actual API key
     outputAudioContext,
     outputNode,
     nextStartTimeRef: nextStartTime,

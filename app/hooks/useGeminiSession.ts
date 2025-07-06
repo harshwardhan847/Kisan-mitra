@@ -4,7 +4,7 @@ import { decode, decodeAudioData } from "~/utils/audio";
 import {
   getMarketData,
   marketDataFunctionDeclaration,
-  type MarketData,
+  type MarketDataResult,
 } from "tools/getMarketData";
 
 // Define the interface for search results, moved here as it's directly used.
@@ -21,7 +21,7 @@ interface UseGeminiSessionProps {
   updateStatus: (msg: string) => void;
   updateError: (msg: string) => void;
   setSearchResults: (results: SearchResult[]) => void;
-  onMarketDataReceived: (data: MarketData) => void;
+  onMarketDataReceived: (data: MarketDataResult) => void;
 }
 
 interface GeminiSessionHook {
@@ -99,8 +99,12 @@ export const useGeminiSession = ({
                       fc.args.commodityName,
                       fc.args.state,
                       fc.args.district,
-                      fc.args.market
+                      fc.args.market,
+                      fc.args.arrivalDate,
+                      fc.args.startDate,
+                      fc.args.endDate
                     );
+                    console.log("getMarketData Tool Result:", toolResult);
                     onMarketDataReceived(toolResult);
                   } else {
                     toolResult = {
