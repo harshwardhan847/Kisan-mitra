@@ -149,8 +149,7 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                       fc.args.market,
                       fc.args.arrivalDate,
                       fc.args.startDate,
-                      fc.args.endDate,
-                      currentLanguage // pass language
+                      fc.args.endDate
                     );
                     onMarketDataReceived(toolResult);
                   } else {
@@ -176,8 +175,7 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                       regions,
                       fc.args.arrivalDate,
                       fc.args.startDate,
-                      fc.args.endDate,
-                      currentLanguage // pass language
+                      fc.args.endDate
                     );
                     onMarketDataReceived(toolResult);
                   } else {

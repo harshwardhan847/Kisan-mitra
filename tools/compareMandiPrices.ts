@@ -5,15 +5,22 @@ import {
   type MandiRecord,
   type MarketDataResult,
 } from "./getMarketData";
+import { useLanguage } from "../app/context/LanguageContext";
 
 export async function compareStateMarketData(
   commodityName: string,
   states: string[],
   arrivalDate?: string,
   startDate?: string,
-  endDate?: string,
-  languageCode?: string // NEW: pass current language
+  endDate?: string
 ): Promise<{ records: MandiRecord[]; summary: string; error?: string }> {
+  // Use language from context
+  let languageCode = "hi-IN";
+  try {
+    // Only works in React context
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    languageCode = useLanguage().currentLanguage;
+  } catch {}
   const MANDI_API_KEY =
     "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b";
   const HISTORICAL_URL =
@@ -102,17 +109,9 @@ export async function compareStateMarketData(
       null,
       2
     );
-    const prompt = `Compare modal price trends for ${commodityName} across the following Indian states during ${displayRange}.
-
-${dataStr}
-
-Respond in this language: ${languageCode || "hi-IN"}.
-
-Provide a concise comparative market insight (max 200 words, markdown):
-- Price trends and differences between states
-- Best time/region to sell/buy
-- Any regional anomalies or patterns
-- Table or bullet points if useful`;
+    const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
+\nCompare modal price trends for ${commodityName} across the following Indian states during ${displayRange}.
+\n${dataStr}\n\nProvide a concise comparative market insight (max 200 words, markdown):\n- Price trends and differences between states\n- Best time/region to sell/buy\n- Any regional anomalies or patterns\n- Table or bullet points if useful`;
     try {
       const genAI = new GoogleGenAI({
         apiKey: "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo",

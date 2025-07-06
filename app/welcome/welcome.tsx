@@ -25,7 +25,7 @@ const LiveAudio: React.FC = () => {
     toolName?: string;
   }>({ active: false });
   const [livePrompt, setLivePrompt] = useState<string>("");
-  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [dashboardData, setDashboardData] = useState<any[]>([]); // now an array for chat history
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
@@ -59,7 +59,7 @@ const LiveAudio: React.FC = () => {
       } else {
         setLivePrompt("");
       }
-      setDashboardData(data);
+      setDashboardData((prev) => [data, ...prev]); // append new data to chat history
       // Remove modal logic from here, dashboard handles display
     },
     []
@@ -250,9 +250,9 @@ const LiveAudio: React.FC = () => {
 
       {/* Live Text Prompter & Dashboard */}
       <div className="flex-1 flex items-center justify-center w-full">
-        {dashboardData && (
+        {dashboardData.length > 0 && (
           <div className="w-full flex flex-col items-center">
-            <DashboardView result={dashboardData} />
+            <DashboardView results={dashboardData} />
           </div>
         )}
       </div>

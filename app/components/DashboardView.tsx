@@ -73,73 +73,74 @@ const ChartCard: React.FC<ChartCardProps> = ({ data, groupBy = "Market" }) => {
 };
 
 interface DashboardViewProps {
-  result: MarketDataResult | Record<string, MarketDataResult>;
+  results: (MarketDataResult | Record<string, MarketDataResult>)[];
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ result }) => {
-  // Handle multi-region (compareStateMarketData) or single
-  const resultsArr = Array.isArray(result)
-    ? result
-    : typeof result === "object" && !("records" in result)
-    ? Object.entries(result as Record<string, MarketDataResult>).map(
-        ([region, res]) => ({ ...res, region })
-      )
-    : [result];
-
+const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
+  // Render each result as a chat bubble/card, oldest at top
   return (
     <div className="w-full flex flex-col items-center gap-6 max-h-[80vh] overflow-y-scroll">
-      {resultsArr.map((res, idx) => {
-        const records: MandiRecord[] = res.records || [];
-        // Stats
-        const modalPrices: number[] = records
-          .map((r: MandiRecord) => parseFloat(r.Modal_Price))
-          .filter((n: number) => !isNaN(n));
-        const min = modalPrices.length ? Math.min(...modalPrices) : null;
-        const max = modalPrices.length ? Math.max(...modalPrices) : null;
-        const avg = modalPrices.length
-          ? modalPrices.reduce((a: number, b: number) => a + b, 0) /
-            modalPrices.length
-          : null;
-        return (
-          <div
-            key={idx}
-            className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-blue-900"
-          >
-            {res.region && (
-              <div className="text-blue-300 text-lg mb-2 font-semibold">
-                {res.region}
+      {results.map((result, chatIdx) => {
+        const resultsArr = Array.isArray(result)
+          ? result
+          : typeof result === "object" && !("records" in result)
+          ? Object.entries(result as Record<string, MarketDataResult>).map(
+              ([region, res]) => ({ ...res, region })
+            )
+          : [result];
+        return resultsArr.map((res, idx) => {
+          const records: MandiRecord[] = res.records || [];
+          // Stats
+          const modalPrices: number[] = records
+            .map((r: MandiRecord) => parseFloat(r.Modal_Price))
+            .filter((n: number) => !isNaN(n));
+          const min = modalPrices.length ? Math.min(...modalPrices) : null;
+          const max = modalPrices.length ? Math.max(...modalPrices) : null;
+          const avg = modalPrices.length
+            ? modalPrices.reduce((a: number, b: number) => a + b, 0) /
+              modalPrices.length
+            : null;
+          return (
+            <div
+              key={chatIdx + "-" + idx}
+              className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-blue-900"
+            >
+              {res.region && (
+                <div className="text-blue-300 text-lg mb-2 font-semibold">
+                  {res.region}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-4 mb-4">
+                <StatCard
+                  label="Min Modal Price"
+                  value={min !== null ? min : "-"}
+                />
+                <StatCard
+                  label="Max Modal Price"
+                  value={max !== null ? max : "-"}
+                />
+                <StatCard
+                  label="Avg Modal Price"
+                  value={avg !== null ? avg.toFixed(0) : "-"}
+                />
+                <StatCard label="Records" value={records.length} />
               </div>
-            )}
-            <div className="flex flex-wrap gap-4 mb-4">
-              <StatCard
-                label="Min Modal Price"
-                value={min !== null ? min : "-"}
+              <ChartCard
+                data={records}
+                groupBy={
+                  records.length > 0 && records[0].State !== undefined
+                    ? "Market"
+                    : "State"
+                }
               />
-              <StatCard
-                label="Max Modal Price"
-                value={max !== null ? max : "-"}
-              />
-              <StatCard
-                label="Avg Modal Price"
-                value={avg !== null ? avg.toFixed(0) : "-"}
-              />
-              <StatCard label="Records" value={records.length} />
+              {res.summary && (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {res.summary}
+                </ReactMarkdown>
+              )}
             </div>
-            <ChartCard
-              data={records}
-              groupBy={
-                records.length > 0 && records[0].State !== undefined
-                  ? "Market"
-                  : "State"
-              }
-            />
-            {res.summary && (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {res.summary}
-              </ReactMarkdown>
-            )}
-          </div>
-        );
+          );
+        });
       })}
     </div>
   );

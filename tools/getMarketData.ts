@@ -1,5 +1,6 @@
 // tools/getMarketData.ts
 import { Type, GoogleGenAI } from "@google/genai"; // Corrected import
+import { useLanguage } from "../app/context/LanguageContext";
 
 // Helper to format a Date object into DD/MM/YYYY
 export function formatDateToDDMMYYYY(date: Date): string {
@@ -43,9 +44,16 @@ export async function getMarketData(
   market?: string,
   arrivalDate?: string, // For single-day query (DD/MM/YYYY)
   startDate?: string, // For range query start (DD/MM/YYYY)
-  endDate?: string, // For range query end (DD/MM/YYYY)
-  languageCode?: string // NEW: pass current language
+  endDate?: string // For range query end (DD/MM/YYYY)
 ): Promise<MarketDataResult> {
+  // Use language from context
+  let languageCode = "hi-IN";
+  try {
+    // Only works in React context
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    languageCode = useLanguage().currentLanguage;
+  } catch {}
+
   const MANDI_API_KEY =
     "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"; // Your API key
   const HISTORICAL_BASE_URL =
@@ -220,32 +228,12 @@ export async function getMarketData(
     // Stringify data for the prompt
     const dataString = JSON.stringify(dataForGemini, null, 2);
 
-    const prompt = `Analyze the following agricultural commodity price data from Indian Mandi markets. The data covers the period from ${displayDateRange}.
-
-${dataString}
-
-Respond in this language: ${languageCode || "hi-IN"}.
-
-Based on this data, provide useful insights, trends (if discernible over the given dates), and recommendations for farmers (sellers) and buyers.
-
-Consider these points in your analysis:
-1.  **Price Overview:** Describe the general price range (min/max/modal) observed across the dates.
-2.  **Price Movements/Trends:** Are there any noticeable patterns, increases, decreases, or stability over the dates provided? (If only one day's data is available, state it's a snapshot.)
-3.  **Insights for Farmers (Sellers):** Advice for farmers based on the observed price movements.
-4.  **Insights for Buyers:** Advice for buyers based on the observed price movements.
-5.  **Data Limitations:** Clearly state if the data is too limited to draw strong conclusions (e.g., very few records or records for only one day).
-
-Format your response strictly in Markdown. Use headings, bullet points, and bold text for clarity. Keep it concise, professional, and directly relevant to the provided data.
-keep this summary short under 150 words
-Example Markdown Structure:
-## Market Analysis: ${commodityName} (${displayDateRange})
-* **Price Overview:** [Summary of min/max/modal prices across the period.]
-* **Price Movements/Trends:** [Describe any observed trends or state that it's a snapshot if only one day.]
-* **Insights for Farmers (Sellers):** [Advice for farmers.]
-* **Insights for Buyers:** [Advice for buyers.]
-* **Important Note:** [Disclaimer about data limitations.]
-`;
-
+    const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
+\nAnalyze the following agricultural commodity price data from Indian Mandi markets. The data covers the period from ${displayDateRange}.
+\n${dataString}
+\nBased on this data, provide useful insights, trends (if discernible over the given dates), and recommendations for farmers (sellers) and buyers.
+\nConsider these points in your analysis:
+1.  **Price Overview:** Describe the general price range (min/max/modal) observed across the dates.\n2.  **Price Movements/Trends:** Are there any noticeable patterns, increases, decreases, or stability over the dates provided? (If only one day's data is available, state it's a snapshot.)\n3.  **Insights for Farmers (Sellers):** Advice for farmers based on the observed price movements.\n4.  **Insights for Buyers:** Advice for buyers based on the observed price movements.\n5.  **Data Limitations:** Clearly state if the data is too limited to draw strong conclusions (e.g., very few records or records for only one day).\n\nFormat your response strictly in Markdown. Use headings, bullet points, and bold text for clarity. Keep it concise, professional, and directly relevant to the provided data. Keep this summary short under 150 words.\nExample Markdown Structure:\n## Market Analysis: ${commodityName} (${displayDateRange})\n* **Price Overview:** [Summary of min/max/modal prices across the period.]\n* **Price Movements/Trends:** [Describe any observed trends or state that it's a snapshot if only one day.]\n* **Insights for Farmers (Sellers):** [Advice for farmers.]\n* **Insights for Buyers:** [Advice for buyers.]\n* **Important Note:** [Disclaimer about data limitations.]\n`;
     try {
       const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
       const result = await genAI.models.generateContent({

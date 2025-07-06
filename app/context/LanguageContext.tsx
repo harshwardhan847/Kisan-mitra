@@ -49,7 +49,26 @@ const LanguageContext = createContext<LanguageContextType | undefined>(
 );
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [currentLanguage, setCurrentLanguage] = useState<string>("hi-IN"); // Default to Hindi
+  // Try to persist language in localStorage for user experience
+  const getInitialLanguage = () => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("kisanmitra_language");
+      if (stored && LANGUAGE_OPTIONS.some((opt) => opt.code === stored))
+        return stored;
+    }
+    return "hi-IN";
+  };
+  const [currentLanguage, setCurrentLanguageState] = useState<string>(
+    getInitialLanguage()
+  );
+
+  const setCurrentLanguage = (lang: string) => {
+    setCurrentLanguageState(lang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kisanmitra_language", lang);
+    }
+  };
+
   return (
     <LanguageContext.Provider value={{ currentLanguage, setCurrentLanguage }}>
       {children}
