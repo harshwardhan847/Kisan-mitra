@@ -2,6 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { GoogleGenAI, Modality } from "@google/genai"; // Session and LiveServerMessage are types, not directly imported as values
 
 import type { Blob } from "@google/genai";
+import {
+  getMarketData,
+  marketDataFunctionDeclaration,
+} from "tools/getMarketData";
 // Define the interface for search results
 interface SearchResult {
   uri: string;
@@ -73,6 +77,7 @@ async function decodeAudioData(
 
   return buffer;
 }
+
 const LiveAudio: React.FC = () => {
   // State variables for UI updates
   const [isRecording, setIsRecording] = useState(false);
@@ -135,11 +140,12 @@ const LiveAudio: React.FC = () => {
     if (!inputNode || !outputNode) return; // Wait for audio nodes to be initialized
 
     clientRef.current = new GoogleGenAI({
-      apiKey: "AIzaSyCp1NWpaYSN2tACe9i3xSgsoeG0AjnZiIM", // Use REACT_APP_ prefix for client-side env vars
+      apiKey: "AIzaSyDCqasCwuuhtwiV20TpD0AgzqaYV4elT-U", // Use REACT_APP_ prefix for client-side env vars
     });
 
     const initSession = async () => {
-      const model = "gemini-2.5-flash-preview-native-audio-dialog";
+      // const model = "gemini-2.5-flash-preview-native-audio-dialog";
+      const model = "gemini-live-2.5-flash-preview";
 
       try {
         const session = await clientRef.current?.live.connect({
@@ -152,7 +158,7 @@ const LiveAudio: React.FC = () => {
               // Use 'any' for LiveServerMessage for simplicity here
               const modelTurn = message.serverContent?.modelTurn;
               const interrupted = message.serverContent?.interrupted;
-
+              const toolCall = message.toolCall;
               if (
                 message.serverContent?.groundingMetadata?.groundingChunks
                   ?.length
@@ -168,6 +174,43 @@ const LiveAudio: React.FC = () => {
               } else {
                 setSearchResults([]); // Clear search results if none provided
               }
+
+              if (toolCall) {
+                const functionResponses = [];
+                for (const fc of toolCall.functionCalls) {
+                  console.log(
+                    `Model called tool: ${fc.name} with args:`,
+                    fc.args
+                  );
+                  let toolResult: any;
+
+                  // Execute the appropriate tool function based on fc.name
+                  if (fc.name === "get_price_details") {
+                    if (fc.args && typeof fc.args.product_name === "string") {
+                      toolResult = getMarketData(fc.args.product_name);
+                    } else {
+                      toolResult = {
+                        error:
+                          "Missing or invalid 'cropName' argument for get_price_details.",
+                      };
+                    }
+                  } else {
+                    toolResult = { error: `Unknown tool: ${fc.name}` };
+                  }
+
+                  functionResponses.push({
+                    id: fc.id,
+                    name: fc.name,
+                    response: { result: toolResult }, // Send the result back
+                  });
+                }
+                console.debug("Sending tool response...\n", functionResponses);
+                sessionRef.current?.sendToolResponse({
+                  functionResponses: functionResponses,
+                });
+                return; // Important: Don't process audio/text if it was a tool call
+              }
+              // --- End Tool Call Handling ---
 
               const audio = modelTurn?.parts[0]?.inlineData;
 
@@ -221,6 +264,7 @@ const LiveAudio: React.FC = () => {
               updateError(e.message);
             },
             onclose: (e: CloseEvent) => {
+              console.log(e);
               updateStatus("Close:" + e.reason);
             },
           },
@@ -230,7 +274,12 @@ const LiveAudio: React.FC = () => {
               voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
               // languageCode: 'en-GB' // Uncomment if you need a specific language
             },
-            tools: [{ googleSearch: {} }],
+            tools: [
+              {
+                googleSearch: {},
+                functionDeclarations: [marketDataFunctionDeclaration],
+              },
+            ],
           },
         });
         sessionRef.current = session;
