@@ -149,7 +149,8 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                       fc.args.market,
                       fc.args.arrivalDate,
                       fc.args.startDate,
-                      fc.args.endDate
+                      fc.args.endDate,
+                      currentLanguage // pass language
                     );
                     onMarketDataReceived(toolResult);
                   } else {
@@ -166,7 +167,6 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                     (Array.isArray(fc.args.states) ||
                       Array.isArray(fc.args.district))
                   ) {
-                    // Prefer states if present, else districts
                     const regions =
                       Array.isArray(fc.args.states) && fc.args.states.length > 0
                         ? fc.args.states
@@ -176,7 +176,8 @@ You are not a chatbot — you are a dependable, trusted digital assistant for a 
                       regions,
                       fc.args.arrivalDate,
                       fc.args.startDate,
-                      fc.args.endDate
+                      fc.args.endDate,
+                      currentLanguage // pass language
                     );
                     onMarketDataReceived(toolResult);
                   } else {

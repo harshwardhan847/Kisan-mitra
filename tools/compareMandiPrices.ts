@@ -11,9 +11,9 @@ export async function compareStateMarketData(
   states: string[],
   arrivalDate?: string,
   startDate?: string,
-  endDate?: string
-): Promise<Record<string, MarketDataResult>> {
-  const result: Record<string, MarketDataResult> = {};
+  endDate?: string,
+  languageCode?: string // NEW: pass current language
+): Promise<{ records: MandiRecord[]; summary: string; error?: string }> {
   const MANDI_API_KEY =
     "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b";
   const HISTORICAL_URL =
@@ -23,31 +23,29 @@ export async function compareStateMarketData(
   const today = new Date();
   const todayFormatted = formatDateToDDMMYYYY(today);
 
-  const getRecordsForState = async (
-    state: string
-  ): Promise<MarketDataResult> => {
-    let dates: Date[] = [];
-    let displayRange = "";
-
-    if (startDate && endDate) {
-      const start = new Date(startDate.split("/").reverse().join("-"));
-      const end = new Date(endDate.split("/").reverse().join("-"));
-      let current = new Date(start);
-      while (current <= end) {
-        dates.push(new Date(current));
-        current.setDate(current.getDate() + 1);
-      }
-      displayRange = `${startDate} to ${endDate}`;
-    } else {
-      const singleDate = arrivalDate
-        ? new Date(arrivalDate.split("/").reverse().join("-"))
-        : today;
-      dates.push(singleDate);
-      displayRange = formatDateToDDMMYYYY(singleDate);
+  // Build all date queries for all states
+  let dates: Date[] = [];
+  let displayRange = "";
+  if (startDate && endDate) {
+    const start = new Date(startDate.split("/").reverse().join("-"));
+    const end = new Date(endDate.split("/").reverse().join("-"));
+    let current = new Date(start);
+    while (current <= end) {
+      dates.push(new Date(current));
+      current.setDate(current.getDate() + 1);
     }
+    displayRange = `${startDate} to ${endDate}`;
+  } else {
+    const singleDate = arrivalDate
+      ? new Date(arrivalDate.split("/").reverse().join("-"))
+      : today;
+    dates.push(singleDate);
+    displayRange = formatDateToDDMMYYYY(singleDate);
+  }
 
-    const records: MandiRecord[] = [];
-
+  // Fetch all records for all states and all dates
+  const allRecords: MandiRecord[] = [];
+  for (const state of states) {
     for (const date of dates) {
       const formattedDate = formatDateToDDMMYYYY(date);
       const isToday = formattedDate === todayFormatted;
@@ -58,14 +56,11 @@ export async function compareStateMarketData(
       }]=${encodeURIComponent(state)}&filters[${
         isToday ? "commodity" : "Commodity"
       }]=${encodeURIComponent(commodityName)}`;
-
       if (!isToday) url += `&filters[Arrival_Date]=${formattedDate}`;
-
       try {
         const res = await fetch(url);
         if (!res.ok) continue;
         const data = await res.json();
-
         const mapped = data.records.map(
           (r: any): MandiRecord =>
             isToday
@@ -84,8 +79,7 @@ export async function compareStateMarketData(
                 }
               : r
         );
-
-        records.push(...mapped);
+        allRecords.push(...mapped);
       } catch (err) {
         console.error(
           `Error fetching for state ${state} on ${formattedDate}`,
@@ -93,51 +87,47 @@ export async function compareStateMarketData(
         );
       }
     }
+  }
 
-    let summary = `No records found for ${state} during ${displayRange}.`;
-    if (records.length > 0) {
-      const dataStr = JSON.stringify(
-        records.map((r) => ({
-          State: r.State,
-          Market: r.Market,
-          Arrival_Date: r.Arrival_Date,
-          Modal_Price: r.Modal_Price,
-        })),
-        null,
-        2
-      );
-
-      const prompt = `Analyze modal price trends for ${commodityName} in ${state} during ${displayRange}.
+  // Compose a single Gemini prompt for all states
+  let summary = `No records found for the selected states during ${displayRange}.`;
+  if (allRecords.length > 0) {
+    const dataStr = JSON.stringify(
+      allRecords.map((r) => ({
+        State: r.State,
+        Market: r.Market,
+        Arrival_Date: r.Arrival_Date,
+        Modal_Price: r.Modal_Price,
+      })),
+      null,
+      2
+    );
+    const prompt = `Compare modal price trends for ${commodityName} across the following Indian states during ${displayRange}.
 
 ${dataStr}
 
-Provide a concise 100-word market insight using markdown:
-- Price trends
-- Best time to sell/buy
-- Any regional anomalies or patterns`;
+Respond in this language: ${languageCode || "hi-IN"}.
 
-      try {
-        const genAI = new GoogleGenAI({
-          apiKey: "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo",
-        });
-        const output = await genAI.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [{ parts: [{ text: prompt }] }],
-        });
-        summary = output.text ?? summary;
-      } catch (err) {
-        console.warn(`Gemini failed for ${state}`, err);
-      }
+Provide a concise comparative market insight (max 200 words, markdown):
+- Price trends and differences between states
+- Best time/region to sell/buy
+- Any regional anomalies or patterns
+- Table or bullet points if useful`;
+    try {
+      const genAI = new GoogleGenAI({
+        apiKey: "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo",
+      });
+      const output = await genAI.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ parts: [{ text: prompt }] }],
+        // generationConfig is not supported, so only language in prompt
+      });
+      summary = output.text ?? summary;
+    } catch (err) {
+      console.warn(`Gemini failed for compareStateMarketData`, err);
     }
-
-    return { records, summary };
-  };
-
-  for (const state of states) {
-    result[state] = await getRecordsForState(state);
   }
-
-  return result;
+  return { records: allRecords, summary };
 }
 
 export const compareStateMarketDataFunctionDeclaration = {

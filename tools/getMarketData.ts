@@ -43,7 +43,8 @@ export async function getMarketData(
   market?: string,
   arrivalDate?: string, // For single-day query (DD/MM/YYYY)
   startDate?: string, // For range query start (DD/MM/YYYY)
-  endDate?: string // For range query end (DD/MM/YYYY)
+  endDate?: string, // For range query end (DD/MM/YYYY)
+  languageCode?: string // NEW: pass current language
 ): Promise<MarketDataResult> {
   const MANDI_API_KEY =
     "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"; // Your API key
@@ -223,6 +224,8 @@ export async function getMarketData(
 
 ${dataString}
 
+Respond in this language: ${languageCode || "hi-IN"}.
+
 Based on this data, provide useful insights, trends (if discernible over the given dates), and recommendations for farmers (sellers) and buyers.
 
 Consider these points in your analysis:
@@ -248,6 +251,7 @@ Example Markdown Structure:
       const result = await genAI.models.generateContent({
         model: "gemini-2.5-flash", // Using a faster model for text generation
         contents: [{ parts: [{ text: prompt }] }],
+        // generationConfig is not supported, so only language in prompt
       });
 
       // Correctly access the generated text from the response

@@ -5,7 +5,10 @@ import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
 import PriceDetailsModal from "~/../components/PriceDetailsModal";
 import type { MarketDataResult } from "tools/getMarketData";
+import DashboardView from "../components/DashboardView";
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 interface SearchResult {
   uri: string;
   title: string;
@@ -16,23 +19,51 @@ const LiveAudio: React.FC = () => {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]); // State to display search results
-  const [showPriceModal, setShowPriceModal] = useState(false);
-  const [priceModalData, setPriceModalData] = useState<MarketDataResult | null>(
-    null
-  );
+
   const [loading, setLoading] = useState<{
     active: boolean;
     toolName?: string;
   }>({ active: false });
+  const [livePrompt, setLivePrompt] = useState<string>("");
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
   const updateError = useCallback((msg: string) => setError(msg), []);
 
-  const handleMarketDataReceived = useCallback((data: MarketDataResult) => {
-    setPriceModalData(data);
-    setShowPriceModal(true); // Open the modal
-  }, []);
+  // Listen for AI or tool result updates and show as live prompter
+  // We'll update setLivePrompt in the onMarketDataReceived and in GeminiSession's onmessage
+  const handleMarketDataReceived = useCallback(
+    (data: MarketDataResult | Record<string, MarketDataResult>) => {
+      // If it's a compare_state_market_data result (object of MarketDataResult), join summaries
+      if (
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        Object.values(data)[0]?.summary
+      ) {
+        setLivePrompt(
+          Object.entries(data)
+            .map(
+              ([region, res]) =>
+                `**${region}**: ${(res as any).summary || "No summary"}`
+            )
+            .join("\n\n")
+        );
+      } else if (
+        data &&
+        typeof data === "object" &&
+        (data as MarketDataResult).summary
+      ) {
+        setLivePrompt((data as MarketDataResult).summary);
+      } else {
+        setLivePrompt("");
+      }
+      setDashboardData(data);
+      // Remove modal logic from here, dashboard handles display
+    },
+    []
+  );
 
   // Custom hook for AudioContexts and GainNodes
   const {
@@ -59,11 +90,6 @@ const LiveAudio: React.FC = () => {
     onMarketDataReceived: handleMarketDataReceived,
     setLoading, // Pass loading setter to hook
   });
-
-  const handleClosePriceModal = useCallback(() => {
-    setShowPriceModal(false);
-    setPriceModalData(null); // Clear data when closed
-  }, []);
 
   // Custom hook for Audio Recording
   const { isRecording, startRecording, stopRecording } = useAudioRecording({
@@ -222,6 +248,15 @@ const LiveAudio: React.FC = () => {
         {error ? `Error: ${error}` : status}
       </div>
 
+      {/* Live Text Prompter & Dashboard */}
+      <div className="flex-1 flex items-center justify-center w-full">
+        {dashboardData && (
+          <div className="w-full flex flex-col items-center">
+            <DashboardView result={dashboardData} />
+          </div>
+        )}
+      </div>
+
       {/* 3D Visualizer Component */}
       {inputNode && outputNode && (
         <div>Visualizing</div>
@@ -229,12 +264,6 @@ const LiveAudio: React.FC = () => {
         //   .inputNode=${inputNode}
         //   .outputNode=${outputNode}
         // ></gdm-live-audio-visuals-3d>
-      )}
-      {showPriceModal && priceModalData && (
-        <PriceDetailsModal
-          data={priceModalData}
-          onClose={handleClosePriceModal}
-        />
       )}
     </div>
   );
