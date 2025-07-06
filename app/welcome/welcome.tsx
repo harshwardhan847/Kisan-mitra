@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { GoogleGenAI, Modality } from "@google/genai"; // Session and LiveServerMessage are types, not directly imported as values
+import { GoogleGenAI, Modality } from "@google/genai";
 
 import type { Blob } from "@google/genai";
 import {
   getMarketData,
   marketDataFunctionDeclaration,
 } from "tools/getMarketData";
-// Define the interface for search results
+
 interface SearchResult {
   uri: string;
   title: string;
@@ -35,7 +35,6 @@ function createBlob(data: Float32Array): Blob {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    // convert float32 -1 to 1 to int16 -32768 to 32767
     int16[i] = data[i] * 32768;
   }
 
@@ -63,7 +62,6 @@ async function decodeAudioData(
   for (let i = 0; i < l; i++) {
     dataFloat32[i] = dataInt16[i] / 32768.0;
   }
-  // Extract interleaved channels
   if (numChannels === 0) {
     buffer.copyToChannel(dataFloat32, 0);
   } else {
@@ -79,15 +77,13 @@ async function decodeAudioData(
 }
 
 const LiveAudio: React.FC = () => {
-  // State variables for UI updates
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
 
-  // Refs for mutable objects that don't trigger re-renders
   const clientRef = useRef<GoogleGenAI | null>(null);
-  const sessionRef = useRef<any | null>(null); // Using 'any' for session due to complex type
+  const sessionRef = useRef<any | null>(null);
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const nextStartTimeRef = useRef(0);
@@ -95,24 +91,19 @@ const LiveAudio: React.FC = () => {
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const scriptProcessorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  // NEW: Ref to track recording state for onaudioprocess callback
   const isRecordingRef = useRef(false);
 
-  // State for nodes passed to the visualizer (these need to be reactive)
   const [inputNode, setInputNode] = useState<GainNode | null>(null);
   const [outputNode, setOutputNode] = useState<GainNode | null>(null);
 
-  // Memoized callback for updating status
   const updateStatus = useCallback((msg: string) => {
     setStatus(msg);
   }, []);
 
-  // Memoized callback for updating error
   const updateError = useCallback((msg: string) => {
     setError(msg);
   }, []);
 
-  // Initialize audio contexts and gain nodes
   useEffect(() => {
     inputAudioContextRef.current = new (window.AudioContext ||
       (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -128,23 +119,20 @@ const LiveAudio: React.FC = () => {
 
     nextStartTimeRef.current = outputAudioContextRef.current.currentTime;
 
-    // Cleanup function for audio contexts
     return () => {
       inputAudioContextRef.current?.close();
       outputAudioContextRef.current?.close();
     };
-  }, []); // Run once on mount
+  }, []);
 
-  // Initialize Gemini client and session
   useEffect(() => {
-    if (!inputNode || !outputNode) return; // Wait for audio nodes to be initialized
+    if (!inputNode || !outputNode) return;
 
     clientRef.current = new GoogleGenAI({
-      apiKey: "AIzaSyDCqasCwuuhtwiV20TpD0AgzqaYV4elT-U", // Use REACT_APP_ prefix for client-side env vars
+      apiKey: "AIzaSyDCqasCwuuhtwiV20TpD0AgzqaYV4elT-U",
     });
 
     const initSession = async () => {
-      // const model = "gemini-2.5-flash-preview-native-audio-dialog";
       const model = "gemini-live-2.5-flash-preview";
 
       try {
@@ -155,10 +143,11 @@ const LiveAudio: React.FC = () => {
               updateStatus("Opened");
             },
             onmessage: async (message: any) => {
-              // Use 'any' for LiveServerMessage for simplicity here
+              // Make onmessage async
               const modelTurn = message.serverContent?.modelTurn;
               const interrupted = message.serverContent?.interrupted;
               const toolCall = message.toolCall;
+
               if (
                 message.serverContent?.groundingMetadata?.groundingChunks
                   ?.length
@@ -172,7 +161,7 @@ const LiveAudio: React.FC = () => {
                     )
                 );
               } else {
-                setSearchResults([]); // Clear search results if none provided
+                setSearchResults([]);
               }
 
               if (toolCall) {
@@ -184,10 +173,10 @@ const LiveAudio: React.FC = () => {
                   );
                   let toolResult: any;
 
-                  // Execute the appropriate tool function based on fc.name
                   if (fc.name === "get_market_data") {
                     if (fc.args && typeof fc.args.commodityName === "string") {
-                      toolResult = getMarketData(
+                      // AWAIT the asynchronous function call here
+                      toolResult = await getMarketData(
                         fc.args.commodityName,
                         fc.args.state,
                         fc.args.district,
@@ -196,7 +185,7 @@ const LiveAudio: React.FC = () => {
                     } else {
                       toolResult = {
                         error:
-                          "Missing or invalid 'cropName' argument for get_price_details.",
+                          "Missing or invalid 'commodityName' argument for get_market_data.",
                       };
                     }
                   } else {
@@ -206,16 +195,15 @@ const LiveAudio: React.FC = () => {
                   functionResponses.push({
                     id: fc.id,
                     name: fc.name,
-                    response: { result: toolResult }, // Send the result back
+                    response: { result: toolResult },
                   });
                 }
                 console.debug("Sending tool response...\n", functionResponses);
                 sessionRef.current?.sendToolResponse({
                   functionResponses: functionResponses,
                 });
-                return; // Important: Don't process audio/text if it was a tool call
+                return;
               }
-              // --- End Tool Call Handling ---
 
               const audio = modelTurn?.parts[0]?.inlineData;
 
@@ -236,7 +224,7 @@ const LiveAudio: React.FC = () => {
                     outputAudioContextRef.current.createBufferSource();
                   source.buffer = audioBuffer;
                   if (outputNode) {
-                    source.connect(outputNode); // Connect to the reactive outputNode
+                    source.connect(outputNode);
                   }
                   source.addEventListener("ended", () => {
                     sourcesRef.current.delete(source);
@@ -277,7 +265,6 @@ const LiveAudio: React.FC = () => {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
               voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
-              // languageCode: 'en-GB' // Uncomment if you need a specific language
             },
             tools: [
               {
@@ -296,13 +283,11 @@ const LiveAudio: React.FC = () => {
 
     initSession();
 
-    // Cleanup function for the session
     return () => {
       sessionRef.current?.close();
     };
-  }, [inputNode, outputNode, updateStatus, updateError]); // Re-run if input/output nodes change
+  }, [inputNode, outputNode, updateStatus, updateError]);
 
-  // Start Recording
   const startRecording = async () => {
     if (isRecording || !inputAudioContextRef.current || !inputNode) {
       return;
@@ -323,19 +308,17 @@ const LiveAudio: React.FC = () => {
       const sourceNode =
         inputAudioContextRef.current.createMediaStreamSource(stream);
       sourceNodeRef.current = sourceNode;
-      sourceNode.connect(inputNode); // Connect to the reactive inputNode
+      sourceNode.connect(inputNode);
 
       const bufferSize = 256;
       const scriptProcessorNode =
         inputAudioContextRef.current.createScriptProcessor(bufferSize, 1, 1);
       scriptProcessorNodeRef.current = scriptProcessorNode;
 
-      // Set ref BEFORE updating state, so onaudioprocess sees the correct value immediately
       isRecordingRef.current = true;
       setIsRecording(true);
 
       scriptProcessorNode.onaudioprocess = (audioProcessingEvent) => {
-        // Use the ref here to get the most current recording status
         if (!isRecordingRef.current) return;
 
         const inputBuffer = audioProcessingEvent.inputBuffer;
@@ -351,11 +334,10 @@ const LiveAudio: React.FC = () => {
     } catch (err: any) {
       console.error("Error starting recording:", err);
       updateStatus(`Error: ${err.message}`);
-      stopRecording(); // Attempt to stop if error occurs
+      stopRecording();
     }
   };
 
-  // Stop Recording
   const stopRecording = () => {
     if (
       !isRecording &&
@@ -366,9 +348,8 @@ const LiveAudio: React.FC = () => {
 
     updateStatus("Stopping recording...");
 
-    // Set ref BEFORE updating state
     isRecordingRef.current = false;
-    setIsRecording(false); // Update state
+    setIsRecording(false);
 
     if (
       scriptProcessorNodeRef.current &&
@@ -390,24 +371,22 @@ const LiveAudio: React.FC = () => {
     updateStatus("Recording stopped. Click Start to begin again.");
   };
 
-  // Reset Session
   const reset = () => {
     sessionRef.current?.close();
-    // Re-initialize session by triggering useEffect (or re-calling initSession if it were exposed)
-    // For simplicity, we'll re-connect the client which will re-init the session.
-    // In a real app, you might want a more controlled re-init.
+
     if (clientRef.current) {
-      // Re-initialize the session directly
       const initSessionAgain = async () => {
-        const model = "gemini-2.5-flash-preview-native-audio-dialog";
+        const model = "gemini-live-2.5-flash-preview"; // Use the correct model name
         try {
           const newSession = await clientRef.current?.live.connect({
             model: model,
             callbacks: {
               onopen: () => updateStatus("Opened (re-initialized)"),
               onmessage: async (message: any) => {
+                // Make onmessage async here too
                 const modelTurn = message.serverContent?.modelTurn;
                 const interrupted = message.serverContent?.interrupted;
+                const toolCall = message.toolCall; // Capture toolCall here as well
 
                 if (
                   message.serverContent?.groundingMetadata?.groundingChunks
@@ -424,6 +403,52 @@ const LiveAudio: React.FC = () => {
                 } else {
                   setSearchResults([]);
                 }
+
+                // Add tool call handling for reset as well
+                if (toolCall) {
+                  const functionResponses = [];
+                  for (const fc of toolCall.functionCalls) {
+                    console.log(
+                      `Model called tool (re-init): ${fc.name} with args:`,
+                      fc.args
+                    );
+                    let toolResult: any;
+
+                    if (fc.name === "get_market_data") {
+                      if (
+                        fc.args &&
+                        typeof fc.args.commodityName === "string"
+                      ) {
+                        toolResult = await getMarketData(
+                          // AWAIT here
+                          fc.args.commodityName,
+                          fc.args.state,
+                          fc.args.district,
+                          fc.args.market
+                        );
+                      } else {
+                        toolResult = {
+                          error:
+                            "Missing or invalid 'commodityName' argument for get_market_data (re-init).",
+                        };
+                      }
+                    } else {
+                      toolResult = {
+                        error: `Unknown tool (re-init): ${fc.name}`,
+                      };
+                    }
+                    functionResponses.push({
+                      id: fc.id,
+                      name: fc.name,
+                      response: { result: toolResult },
+                    });
+                  }
+                  sessionRef.current?.sendToolResponse({
+                    functionResponses: functionResponses,
+                  });
+                  return;
+                }
+                // End tool call handling for reset
 
                 const audio = modelTurn?.parts[0]?.inlineData;
                 if (audio && outputAudioContextRef.current) {
@@ -478,7 +503,12 @@ const LiveAudio: React.FC = () => {
               speechConfig: {
                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
               },
-              tools: [{ googleSearch: {} }],
+              tools: [
+                {
+                  googleSearch: {},
+                  functionDeclarations: [marketDataFunctionDeclaration], // Ensure tools are re-declared on reset
+                },
+              ],
             },
           });
           sessionRef.current = newSession;
