@@ -12,7 +12,8 @@ export async function compareStateMarketData(
   states: string[],
   arrivalDate?: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  previousChats?: MarketDataResult[] // NEW: pass previous chat data for context
 ): Promise<{ records: MandiRecord[]; summary: string; error?: string }> {
   // Use language from context
   let languageCode = "hi-IN";
@@ -109,8 +110,16 @@ export async function compareStateMarketData(
       null,
       2
     );
+    let chatContext = "";
+    if (previousChats && previousChats.length > 0) {
+      chatContext = previousChats
+        .map((c, i) => `Previous Query #${i + 1}:\n${c.summary}`)
+        .join("\n\n");
+    }
     const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
-\nCompare modal price trends for ${commodityName} across the following Indian states during ${displayRange}.
+\n${
+      chatContext ? chatContext + "\n\n" : ""
+    }Compare modal price trends for ${commodityName} across the following Indian states during ${displayRange}.
 \n${dataStr}\n\nProvide a concise comparative market insight (max 200 words, markdown):\n- Price trends and differences between states\n- Best time/region to sell/buy\n- Any regional anomalies or patterns\n- Table or bullet points if useful`;
     try {
       const genAI = new GoogleGenAI({

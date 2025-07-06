@@ -100,6 +100,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
             ? modalPrices.reduce((a: number, b: number) => a + b, 0) /
               modalPrices.length
             : null;
+          // Get commodity name and date range
+          const commodity = records[0]?.Commodity || "-";
+          let dateRange = "-";
+          if (records.length > 0) {
+            const dates = records.map((r) => r.Arrival_Date).sort();
+            const first = dates[0];
+            const last = dates[dates.length - 1];
+            dateRange = first === last ? first : `${first} to ${last}`;
+          }
           return (
             <div
               key={chatIdx + "-" + idx}
@@ -110,6 +119,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                   {res.region}
                 </div>
               )}
+              {/* Commodity and Date Range */}
+              <div className="flex flex-wrap gap-4 mb-4 items-center">
+                <div className="bg-blue-900 text-blue-100 rounded px-3 py-1 text-sm font-semibold">
+                  Crop: {commodity}
+                </div>
+                <div className="bg-gray-800 text-blue-200 rounded px-3 py-1 text-sm">
+                  Date: {dateRange}
+                </div>
+              </div>
               <div className="flex flex-wrap gap-4 mb-4">
                 <StatCard
                   label="Min Modal Price"

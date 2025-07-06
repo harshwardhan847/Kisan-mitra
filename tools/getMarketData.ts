@@ -44,7 +44,8 @@ export async function getMarketData(
   market?: string,
   arrivalDate?: string, // For single-day query (DD/MM/YYYY)
   startDate?: string, // For range query start (DD/MM/YYYY)
-  endDate?: string // For range query end (DD/MM/YYYY)
+  endDate?: string, // For range query end (DD/MM/YYYY)
+  previousChats?: MarketDataResult[] // NEW: pass previous chat data for context
 ): Promise<MarketDataResult> {
   // Use language from context
   let languageCode = "hi-IN";
@@ -72,6 +73,7 @@ export async function getMarketData(
   const todayFormatted = formatDateToDDMMYYYY(today);
 
   // --- Date Parsing Logic ---
+  let isTodayOnly = false;
   if (startDate && endDate) {
     // Case 1: Date range query (startDate and endDate provided)
     const startParts = startDate.split("/").map(Number);
@@ -98,6 +100,7 @@ export async function getMarketData(
     displayDateRange = `${formatDateToDDMMYYYY(
       start
     )} to ${formatDateToDDMMYYYY(end)}`;
+    isTodayOnly = false;
   } else {
     // Case 2: Single-day query (arrivalDate provided) or default to today
     let singleDate: Date;
@@ -119,6 +122,8 @@ export async function getMarketData(
     }
     datesToFetch.push(singleDate);
     displayDateRange = formatDateToDDMMYYYY(singleDate); // For single-day summary
+    isTodayOnly =
+      formatDateToDDMMYYYY(singleDate) === formatDateToDDMMYYYY(today);
   }
 
   const fetchedRecords: MandiRecord[] = []; // Use MandiRecord here
@@ -211,6 +216,14 @@ export async function getMarketData(
   let aiSummary =
     "No specific market insights could be generated for the provided data range/date.";
 
+  // If only today's price is requested, skip AI summary and return data directly
+  if (isTodayOnly) {
+    return {
+      records: fetchedRecords,
+      summary: "",
+    };
+  }
+
   if (fetchedRecords.length > 0) {
     // Prepare data for Gemini to summarize
     // Ensure these fields match the MandiRecord interface (and thus the API response keys).
@@ -228,8 +241,16 @@ export async function getMarketData(
     // Stringify data for the prompt
     const dataString = JSON.stringify(dataForGemini, null, 2);
 
+    let chatContext = "";
+    if (previousChats && previousChats.length > 0) {
+      chatContext = previousChats
+        .map((c, i) => `Previous Query #${i + 1}:\n${c.summary}`)
+        .join("\n\n");
+    }
     const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
-\nAnalyze the following agricultural commodity price data from Indian Mandi markets. The data covers the period from ${displayDateRange}.
+\n${
+      chatContext ? chatContext + "\n\n" : ""
+    }Analyze the following agricultural commodity price data from Indian Mandi markets. The data covers the period from ${displayDateRange}.
 \n${dataString}
 \nBased on this data, provide useful insights, trends (if discernible over the given dates), and recommendations for farmers (sellers) and buyers.
 \nConsider these points in your analysis:

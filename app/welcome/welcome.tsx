@@ -14,6 +14,8 @@ interface SearchResult {
   title: string;
 }
 
+const MAX_CONTEXT_CHATS = 10; // Limit Gemini context to last 5 chats
+
 const LiveAudio: React.FC = () => {
   // State for UI display
   const [status, setStatus] = useState("");
@@ -25,7 +27,9 @@ const LiveAudio: React.FC = () => {
     toolName?: string;
   }>({ active: false });
   const [livePrompt, setLivePrompt] = useState<string>("");
-  const [dashboardData, setDashboardData] = useState<any[]>([]); // now an array for chat history
+  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  const [dashboardData, setDashboardData] = useState<any[]>([]); // chat history
+  const [dashboardError, setDashboardError] = useState<string>(""); // For Gemini/context errors
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
@@ -50,17 +54,21 @@ const LiveAudio: React.FC = () => {
             )
             .join("\n\n")
         );
+        setDashboardError("");
       } else if (
         data &&
         typeof data === "object" &&
         (data as MarketDataResult).summary
       ) {
         setLivePrompt((data as MarketDataResult).summary);
+        setDashboardError("");
+      } else if (data && (data as any).error) {
+        setDashboardError((data as any).error);
+        setLivePrompt("");
       } else {
         setLivePrompt("");
       }
-      setDashboardData((prev) => [data, ...prev]); // append new data to chat history
-      // Remove modal logic from here, dashboard handles display
+      setDashboardData((prev) => [...prev, data]); // append new data to chat history
     },
     []
   );
@@ -89,6 +97,7 @@ const LiveAudio: React.FC = () => {
     setSearchResults: setSearchResults, // Pass local state setter to update results from hook
     onMarketDataReceived: handleMarketDataReceived,
     setLoading, // Pass loading setter to hook
+    // When you call getMarketData or compareStateMarketData, pass getPreviousChats() as the last argument
   });
 
   // Custom hook for Audio Recording
@@ -100,7 +109,16 @@ const LiveAudio: React.FC = () => {
     updateError,
   });
 
-  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  // When calling getMarketData or compareStateMarketData, pass previous chat data for context
+  const getPreviousChats = () =>
+    dashboardData.filter((d) => d && d.summary).slice(-MAX_CONTEXT_CHATS); // Only last N
+
+  // Clear chat history handler
+  const handleClearHistory = () => {
+    setDashboardData([]);
+    setDashboardError("");
+    setLivePrompt("");
+  };
 
   return (
     <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
@@ -196,11 +214,32 @@ const LiveAudio: React.FC = () => {
             <svg
               xmlns="http://www.w3.org/2000/svg"
               height="24px"
-              viewBox="0 -960 960 960"
+              viewBox="0 0 24 24"
               width="24px"
               fill="#ffffff"
             >
               <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
+            </svg>
+          </button>
+          <button
+            id="clearHistoryButton"
+            onClick={handleClearHistory}
+            disabled={dashboardData.length === 0}
+            aria-label="Clear Chat History"
+            className="p-4 rounded-full bg-yellow-600 text-white shadow-lg hover:bg-yellow-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {/* Trash/clear icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                fill="#fff"
+                d="M7 4V2h10v2h5v2H2V4h5zm2 0h6V4H9v0zm-5 4h16l-1.5 14.5A2 2 0 0 1 16.5 22h-9a2 2 0 0 1-1.99-1.5L3 8zm5 2v8h2v-8H8zm4 0v8h2v-8h-2z"
+              />
             </svg>
           </button>
           <button
@@ -252,7 +291,27 @@ const LiveAudio: React.FC = () => {
       <div className="flex-1 flex items-center justify-center w-full">
         {dashboardData.length > 0 && (
           <div className="w-full flex flex-col items-center">
+            {dashboardError && (
+              <div className="mb-4 p-4 bg-red-700 text-white rounded shadow max-w-xl w-full text-center">
+                <strong>Error:</strong> {dashboardError}
+              </div>
+            )}
             <DashboardView results={dashboardData} />
+            {/* Advanced chart/export placeholder */}
+            <div className="mt-4 flex gap-4">
+              <button
+                className="px-4 py-2 bg-blue-700 rounded text-white opacity-60 cursor-not-allowed"
+                disabled
+              >
+                Export (Coming Soon)
+              </button>
+              <button
+                className="px-4 py-2 bg-green-700 rounded text-white opacity-60 cursor-not-allowed"
+                disabled
+              >
+                Advanced Charts (Coming Soon)
+              </button>
+            </div>
           </div>
         )}
       </div>
