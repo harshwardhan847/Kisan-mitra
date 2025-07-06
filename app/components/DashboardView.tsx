@@ -100,15 +100,45 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
             ? modalPrices.reduce((a: number, b: number) => a + b, 0) /
               modalPrices.length
             : null;
-          // Get commodity name and date range
-          const commodity = records[0]?.Commodity || "-";
+          // Get commodity name and date range (robust to both PascalCase and camelCase)
+          const getField = (r: any, key: string) =>
+            r[key] ??
+            r[key.charAt(0).toLowerCase() + key.slice(1)] ??
+            r[key.toUpperCase()];
+          const commodity =
+            records.length > 0 ? getField(records[0], "Commodity") || "-" : "-";
           let dateRange = "-";
           if (records.length > 0) {
-            const dates = records.map((r) => r.Arrival_Date).sort();
+            const dates = records
+              .map((r) => getField(r, "Arrival_Date"))
+              .sort();
             const first = dates[0];
             const last = dates[dates.length - 1];
             dateRange = first === last ? first : `${first} to ${last}`;
           }
+          // Fix: Use correct price fields for min/max/avg if only lowercase keys exist
+          const getPrice = (r: any, key: string) =>
+            parseFloat(getField(r, key));
+          const minFixed = records.length
+            ? Math.min(
+                ...records
+                  .map((r) => getPrice(r, "Min_Price"))
+                  .filter((n) => !isNaN(n))
+              )
+            : null;
+          const maxFixed = records.length
+            ? Math.max(
+                ...records
+                  .map((r) => getPrice(r, "Max_Price"))
+                  .filter((n) => !isNaN(n))
+              )
+            : null;
+          const avgFixed = records.length
+            ? records
+                .map((r) => getPrice(r, "Modal_Price"))
+                .filter((n) => !isNaN(n))
+                .reduce((a, b) => a + b, 0) / records.length
+            : null;
           return (
             <div
               key={chatIdx + "-" + idx}
@@ -131,22 +161,41 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
               <div className="flex flex-wrap gap-4 mb-4">
                 <StatCard
                   label="Min Modal Price"
-                  value={min !== null ? min : "-"}
+                  value={
+                    minFixed !== null &&
+                    minFixed !== undefined &&
+                    !isNaN(minFixed)
+                      ? minFixed
+                      : "-"
+                  }
                 />
                 <StatCard
                   label="Max Modal Price"
-                  value={max !== null ? max : "-"}
+                  value={
+                    maxFixed !== null &&
+                    maxFixed !== undefined &&
+                    !isNaN(maxFixed)
+                      ? maxFixed
+                      : "-"
+                  }
                 />
                 <StatCard
                   label="Avg Modal Price"
-                  value={avg !== null ? avg.toFixed(0) : "-"}
+                  value={
+                    avgFixed !== null &&
+                    avgFixed !== undefined &&
+                    !isNaN(avgFixed)
+                      ? avgFixed.toFixed(0)
+                      : "-"
+                  }
                 />
                 <StatCard label="Records" value={records.length} />
               </div>
               <ChartCard
                 data={records}
                 groupBy={
-                  records.length > 0 && records[0].State !== undefined
+                  records.length > 0 &&
+                  getField(records[0], "State") !== undefined
                     ? "Market"
                     : "State"
                 }

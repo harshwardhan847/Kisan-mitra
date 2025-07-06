@@ -116,11 +116,11 @@ export async function compareStateMarketData(
         .map((c, i) => `Previous Query #${i + 1}:\n${c.summary}`)
         .join("\n\n");
     }
+    // SHORT, CONVERSATIONAL PROMPT
     const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
-\n${
+$${
       chatContext ? chatContext + "\n\n" : ""
-    }Compare modal price trends for ${commodityName} across the following Indian states during ${displayRange}.
-\n${dataStr}\n\nProvide a concise comparative market insight (max 200 words, markdown):\n- Price trends and differences between states\n- Best time/region to sell/buy\n- Any regional anomalies or patterns\n- Table or bullet points if useful`;
+    }Here is mandi price data for ${commodityName} across states (${displayRange}):\n${dataStr}\n\nReply with a short, direct, conversational summary (max 3 sentences). Focus on the main trend, a tip for farmers, and a tip for buyers. If data is too little, say so. Use markdown, but keep it concise and to the point like a real chat.`;
     try {
       const genAI = new GoogleGenAI({
         apiKey: "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo",

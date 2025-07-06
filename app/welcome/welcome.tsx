@@ -7,8 +7,6 @@ import PriceDetailsModal from "~/../components/PriceDetailsModal";
 import type { MarketDataResult } from "tools/getMarketData";
 import DashboardView from "../components/DashboardView";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 interface SearchResult {
   uri: string;
   title: string;
