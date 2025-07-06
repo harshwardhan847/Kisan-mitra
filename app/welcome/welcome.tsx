@@ -1,528 +1,57 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { GoogleGenAI, Modality } from "@google/genai";
+import React, { useState, useCallback } from "react";
+import { useAudioContexts } from "~/hooks/useAudioContexts";
+import { useGeminiSession } from "~/hooks/useGeminiSession";
+import { useAudioRecording } from "~/hooks/useAudioRecording";
 
-import type { Blob } from "@google/genai";
-import {
-  getMarketData,
-  marketDataFunctionDeclaration,
-} from "tools/getMarketData";
-
+// Define SearchResult interface here if it's only used in this component,
+// or move it to a shared types file if used elsewhere.
 interface SearchResult {
   uri: string;
   title: string;
 }
 
-function encode(bytes: any) {
-  let binary = "";
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-function decode(base64: any) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-function createBlob(data: Float32Array): Blob {
-  const l = data.length;
-  const int16 = new Int16Array(l);
-  for (let i = 0; i < l; i++) {
-    int16[i] = data[i] * 32768;
-  }
-
-  return {
-    data: encode(new Uint8Array(int16.buffer)),
-    mimeType: "audio/pcm;rate=16000",
-  };
-}
-
-async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number
-): Promise<AudioBuffer> {
-  const buffer = ctx.createBuffer(
-    numChannels,
-    data.length / 2 / numChannels,
-    sampleRate
-  );
-
-  const dataInt16 = new Int16Array(data.buffer);
-  const l = dataInt16.length;
-  const dataFloat32 = new Float32Array(l);
-  for (let i = 0; i < l; i++) {
-    dataFloat32[i] = dataInt16[i] / 32768.0;
-  }
-  if (numChannels === 0) {
-    buffer.copyToChannel(dataFloat32, 0);
-  } else {
-    for (let i = 0; i < numChannels; i++) {
-      const channel = dataFloat32.filter(
-        (_, index) => index % numChannels === i
-      );
-      buffer.copyToChannel(channel, i);
-    }
-  }
-
-  return buffer;
-}
-
 const LiveAudio: React.FC = () => {
-  const [isRecording, setIsRecording] = useState(false);
+  // State for UI display
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]); // State to display search results
 
-  const clientRef = useRef<GoogleGenAI | null>(null);
-  const sessionRef = useRef<any | null>(null);
-  const inputAudioContextRef = useRef<AudioContext | null>(null);
-  const outputAudioContextRef = useRef<AudioContext | null>(null);
-  const nextStartTimeRef = useRef(0);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const scriptProcessorNodeRef = useRef<ScriptProcessorNode | null>(null);
-  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  const isRecordingRef = useRef(false);
+  // Memoized callbacks for status and error updates
+  const updateStatus = useCallback((msg: string) => setStatus(msg), []);
+  const updateError = useCallback((msg: string) => setError(msg), []);
 
-  const [inputNode, setInputNode] = useState<GainNode | null>(null);
-  const [outputNode, setOutputNode] = useState<GainNode | null>(null);
+  // Custom hook for AudioContexts and GainNodes
+  const {
+    inputAudioContext,
+    outputAudioContext,
+    inputNode,
+    outputNode,
+    nextStartTime,
+  } = useAudioContexts();
 
-  const updateStatus = useCallback((msg: string) => {
-    setStatus(msg);
-  }, []);
+  // Custom hook for Gemini Session management
+  const {
+    session,
+    resetSession,
+    searchResults: geminiSearchResults, // Rename to avoid conflict with local state
+  } = useGeminiSession({
+    apiKey: "AIzaSyDCqasCwuuhtwiV20TpD0AgzqaYV4elT-U", // Replace with your actual API key
+    outputAudioContext,
+    outputNode,
+    nextStartTimeRef: nextStartTime,
+    updateStatus,
+    updateError,
+    setSearchResults: setSearchResults, // Pass local state setter to update results from hook
+  });
 
-  const updateError = useCallback((msg: string) => {
-    setError(msg);
-  }, []);
-
-  useEffect(() => {
-    inputAudioContextRef.current = new (window.AudioContext ||
-      (window as any).webkitAudioContext)({ sampleRate: 16000 });
-    outputAudioContextRef.current = new (window.AudioContext ||
-      (window as any).webkitAudioContext)({ sampleRate: 24000 });
-
-    const inputGain = inputAudioContextRef.current.createGain();
-    const outputGain = outputAudioContextRef.current.createGain();
-    setInputNode(inputGain);
-    setOutputNode(outputGain);
-
-    outputGain.connect(outputAudioContextRef.current.destination);
-
-    nextStartTimeRef.current = outputAudioContextRef.current.currentTime;
-
-    return () => {
-      inputAudioContextRef.current?.close();
-      outputAudioContextRef.current?.close();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!inputNode || !outputNode) return;
-
-    clientRef.current = new GoogleGenAI({
-      apiKey: "AIzaSyDCqasCwuuhtwiV20TpD0AgzqaYV4elT-U",
-    });
-
-    const initSession = async () => {
-      const model = "gemini-live-2.5-flash-preview";
-
-      try {
-        const session = await clientRef.current?.live.connect({
-          model: model,
-          callbacks: {
-            onopen: () => {
-              updateStatus("Opened");
-            },
-            onmessage: async (message: any) => {
-              // Make onmessage async
-              const modelTurn = message.serverContent?.modelTurn;
-              const interrupted = message.serverContent?.interrupted;
-              const toolCall = message.toolCall;
-
-              if (
-                message.serverContent?.groundingMetadata?.groundingChunks
-                  ?.length
-              ) {
-                setSearchResults(
-                  message.serverContent.groundingMetadata.groundingChunks
-                    .map((chunk: any) => chunk.web)
-                    .filter(
-                      (web: any): web is SearchResult =>
-                        !!(web?.uri && web.title)
-                    )
-                );
-              } else {
-                setSearchResults([]);
-              }
-
-              if (toolCall) {
-                const functionResponses = [];
-                for (const fc of toolCall.functionCalls) {
-                  console.log(
-                    `Model called tool: ${fc.name} with args:`,
-                    fc.args
-                  );
-                  let toolResult: any;
-
-                  if (fc.name === "get_market_data") {
-                    if (fc.args && typeof fc.args.commodityName === "string") {
-                      // AWAIT the asynchronous function call here
-                      toolResult = await getMarketData(
-                        fc.args.commodityName,
-                        fc.args.state,
-                        fc.args.district,
-                        fc.args.market
-                      );
-                    } else {
-                      toolResult = {
-                        error:
-                          "Missing or invalid 'commodityName' argument for get_market_data.",
-                      };
-                    }
-                  } else {
-                    toolResult = { error: `Unknown tool: ${fc.name}` };
-                  }
-
-                  functionResponses.push({
-                    id: fc.id,
-                    name: fc.name,
-                    response: { result: toolResult },
-                  });
-                }
-                console.debug("Sending tool response...\n", functionResponses);
-                sessionRef.current?.sendToolResponse({
-                  functionResponses: functionResponses,
-                });
-                return;
-              }
-
-              const audio = modelTurn?.parts[0]?.inlineData;
-
-              if (audio && outputAudioContextRef.current) {
-                nextStartTimeRef.current = Math.max(
-                  nextStartTimeRef.current,
-                  outputAudioContextRef.current.currentTime
-                );
-
-                try {
-                  const audioBuffer = await decodeAudioData(
-                    decode(audio.data),
-                    outputAudioContextRef.current,
-                    24000,
-                    1
-                  );
-                  const source =
-                    outputAudioContextRef.current.createBufferSource();
-                  source.buffer = audioBuffer;
-                  if (outputNode) {
-                    source.connect(outputNode);
-                  }
-                  source.addEventListener("ended", () => {
-                    sourcesRef.current.delete(source);
-                  });
-
-                  source.start(nextStartTimeRef.current);
-                  nextStartTimeRef.current =
-                    nextStartTimeRef.current + audioBuffer.duration;
-                  sourcesRef.current.add(source);
-                } catch (audioDecodeError: any) {
-                  console.error(
-                    "Error decoding or playing audio:",
-                    audioDecodeError
-                  );
-                  updateError(
-                    `Audio playback error: ${audioDecodeError.message}`
-                  );
-                }
-              }
-
-              if (interrupted) {
-                for (const source of sourcesRef.current.values()) {
-                  source.stop();
-                  sourcesRef.current.delete(source);
-                }
-                nextStartTimeRef.current = 0;
-              }
-            },
-            onerror: (e: ErrorEvent) => {
-              updateError(e.message);
-            },
-            onclose: (e: CloseEvent) => {
-              console.log(e);
-              updateStatus("Close:" + e.reason);
-            },
-          },
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
-            },
-            tools: [
-              {
-                googleSearch: {},
-                functionDeclarations: [marketDataFunctionDeclaration],
-              },
-            ],
-          },
-        });
-        sessionRef.current = session;
-      } catch (e: any) {
-        console.error(e);
-        updateError(`Session connection error: ${e.message}`);
-      }
-    };
-
-    initSession();
-
-    return () => {
-      sessionRef.current?.close();
-    };
-  }, [inputNode, outputNode, updateStatus, updateError]);
-
-  const startRecording = async () => {
-    if (isRecording || !inputAudioContextRef.current || !inputNode) {
-      return;
-    }
-
-    inputAudioContextRef.current.resume();
-    updateStatus("Requesting microphone access...");
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-      mediaStreamRef.current = stream;
-
-      updateStatus("Microphone access granted. Starting capture...");
-
-      const sourceNode =
-        inputAudioContextRef.current.createMediaStreamSource(stream);
-      sourceNodeRef.current = sourceNode;
-      sourceNode.connect(inputNode);
-
-      const bufferSize = 256;
-      const scriptProcessorNode =
-        inputAudioContextRef.current.createScriptProcessor(bufferSize, 1, 1);
-      scriptProcessorNodeRef.current = scriptProcessorNode;
-
-      isRecordingRef.current = true;
-      setIsRecording(true);
-
-      scriptProcessorNode.onaudioprocess = (audioProcessingEvent) => {
-        if (!isRecordingRef.current) return;
-
-        const inputBuffer = audioProcessingEvent.inputBuffer;
-        const pcmData = inputBuffer.getChannelData(0);
-
-        sessionRef.current?.sendRealtimeInput({ media: createBlob(pcmData) });
-      };
-
-      sourceNode.connect(scriptProcessorNode);
-      scriptProcessorNode.connect(inputAudioContextRef.current.destination);
-
-      updateStatus("🔴 Recording... Capturing PCM chunks.");
-    } catch (err: any) {
-      console.error("Error starting recording:", err);
-      updateStatus(`Error: ${err.message}`);
-      stopRecording();
-    }
-  };
-
-  const stopRecording = () => {
-    if (
-      !isRecording &&
-      !mediaStreamRef.current &&
-      !inputAudioContextRef.current
-    )
-      return;
-
-    updateStatus("Stopping recording...");
-
-    isRecordingRef.current = false;
-    setIsRecording(false);
-
-    if (
-      scriptProcessorNodeRef.current &&
-      sourceNodeRef.current &&
-      inputAudioContextRef.current
-    ) {
-      scriptProcessorNodeRef.current.disconnect();
-      sourceNodeRef.current.disconnect();
-    }
-
-    scriptProcessorNodeRef.current = null;
-    sourceNodeRef.current = null;
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-
-    updateStatus("Recording stopped. Click Start to begin again.");
-  };
-
-  const reset = () => {
-    sessionRef.current?.close();
-
-    if (clientRef.current) {
-      const initSessionAgain = async () => {
-        const model = "gemini-live-2.5-flash-preview"; // Use the correct model name
-        try {
-          const newSession = await clientRef.current?.live.connect({
-            model: model,
-            callbacks: {
-              onopen: () => updateStatus("Opened (re-initialized)"),
-              onmessage: async (message: any) => {
-                // Make onmessage async here too
-                const modelTurn = message.serverContent?.modelTurn;
-                const interrupted = message.serverContent?.interrupted;
-                const toolCall = message.toolCall; // Capture toolCall here as well
-
-                if (
-                  message.serverContent?.groundingMetadata?.groundingChunks
-                    ?.length
-                ) {
-                  setSearchResults(
-                    message.serverContent.groundingMetadata.groundingChunks
-                      .map((chunk: any) => chunk.web)
-                      .filter(
-                        (web: any): web is SearchResult =>
-                          !!(web?.uri && web.title)
-                      )
-                  );
-                } else {
-                  setSearchResults([]);
-                }
-
-                // Add tool call handling for reset as well
-                if (toolCall) {
-                  const functionResponses = [];
-                  for (const fc of toolCall.functionCalls) {
-                    console.log(
-                      `Model called tool (re-init): ${fc.name} with args:`,
-                      fc.args
-                    );
-                    let toolResult: any;
-
-                    if (fc.name === "get_market_data") {
-                      if (
-                        fc.args &&
-                        typeof fc.args.commodityName === "string"
-                      ) {
-                        toolResult = await getMarketData(
-                          // AWAIT here
-                          fc.args.commodityName,
-                          fc.args.state,
-                          fc.args.district,
-                          fc.args.market
-                        );
-                      } else {
-                        toolResult = {
-                          error:
-                            "Missing or invalid 'commodityName' argument for get_market_data (re-init).",
-                        };
-                      }
-                    } else {
-                      toolResult = {
-                        error: `Unknown tool (re-init): ${fc.name}`,
-                      };
-                    }
-                    functionResponses.push({
-                      id: fc.id,
-                      name: fc.name,
-                      response: { result: toolResult },
-                    });
-                  }
-                  sessionRef.current?.sendToolResponse({
-                    functionResponses: functionResponses,
-                  });
-                  return;
-                }
-                // End tool call handling for reset
-
-                const audio = modelTurn?.parts[0]?.inlineData;
-                if (audio && outputAudioContextRef.current) {
-                  nextStartTimeRef.current = Math.max(
-                    nextStartTimeRef.current,
-                    outputAudioContextRef.current.currentTime
-                  );
-                  try {
-                    const audioBuffer = await decodeAudioData(
-                      decode(audio.data),
-                      outputAudioContextRef.current,
-                      24000,
-                      1
-                    );
-                    const source =
-                      outputAudioContextRef.current.createBufferSource();
-                    source.buffer = audioBuffer;
-                    if (outputNode) {
-                      source.connect(outputNode);
-                    }
-                    source.addEventListener("ended", () => {
-                      sourcesRef.current.delete(source);
-                    });
-                    source.start(nextStartTimeRef.current);
-                    nextStartTimeRef.current =
-                      nextStartTimeRef.current + audioBuffer.duration;
-                    sourcesRef.current.add(source);
-                  } catch (audioDecodeError: any) {
-                    console.error(
-                      "Error decoding or playing audio (re-init):",
-                      audioDecodeError
-                    );
-                    updateError(
-                      `Audio playback error (re-init): ${audioDecodeError.message}`
-                    );
-                  }
-                }
-                if (interrupted) {
-                  for (const source of sourcesRef.current.values()) {
-                    source.stop();
-                    sourcesRef.current.delete(source);
-                  }
-                  nextStartTimeRef.current = 0;
-                }
-              },
-              onerror: (e: ErrorEvent) => updateError(e.message),
-              onclose: (e: CloseEvent) =>
-                updateStatus("Close (re-init):" + e.reason),
-            },
-            config: {
-              responseModalities: [Modality.AUDIO],
-              speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
-              },
-              tools: [
-                {
-                  googleSearch: {},
-                  functionDeclarations: [marketDataFunctionDeclaration], // Ensure tools are re-declared on reset
-                },
-              ],
-            },
-          });
-          sessionRef.current = newSession;
-        } catch (e: any) {
-          console.error("Error re-initializing session:", e);
-          updateError(`Session re-init error: ${e.message}`);
-        }
-      };
-      initSessionAgain();
-    }
-
-    setSearchResults([]);
-    updateStatus("Session cleared and re-initialized.");
-  };
+  // Custom hook for Audio Recording
+  const { isRecording, startRecording, stopRecording } = useAudioRecording({
+    inputAudioContext,
+    inputNode,
+    session,
+    updateStatus,
+    updateError,
+  });
 
   return (
     <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
@@ -555,7 +84,7 @@ const LiveAudio: React.FC = () => {
         <div className="flex space-x-4">
           <button
             id="resetButton"
-            onClick={reset}
+            onClick={resetSession} // Use the resetSession from hook
             disabled={isRecording}
             aria-label="Reset Session"
             className="p-4 rounded-full bg-gray-700 text-white shadow-lg hover:bg-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hidden"
@@ -572,7 +101,7 @@ const LiveAudio: React.FC = () => {
           </button>
           <button
             id="startButton"
-            onClick={startRecording}
+            onClick={startRecording} // Use the startRecording from hook
             disabled={isRecording}
             aria-label="Start Recording"
             className="p-4 rounded-full bg-red-600 text-white shadow-lg hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -589,7 +118,7 @@ const LiveAudio: React.FC = () => {
           </button>
           <button
             id="stopButton"
-            onClick={stopRecording}
+            onClick={stopRecording} // Use the stopRecording from hook
             disabled={!isRecording}
             aria-label="Stop Recording"
             className="p-4 rounded-full bg-gray-300 text-gray-800 shadow-lg hover:bg-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
