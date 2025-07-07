@@ -175,13 +175,14 @@ const RechartsChart: React.FC<{ chartType?: string; chartData?: any }> = ({
   return null;
 };
 
+export type ToolResponse =
+  | MarketDataResult
+  | Record<string, MarketDataResult>
+  | GovernmentSchemesResult
+  | CropDiseaseDiagnosis
+  | { error: string };
 interface DashboardViewProps {
-  results: (
-    | MarketDataResult
-    | Record<string, MarketDataResult>
-    | GovernmentSchemesResult
-    | CropDiseaseDiagnosis
-  )[];
+  results: ToolResponse[];
   onDiagnoseCropDisease?: (image: string) => Promise<void>;
   isDiagnosing?: boolean;
 }

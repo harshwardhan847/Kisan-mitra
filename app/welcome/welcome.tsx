@@ -7,7 +7,7 @@ import { diagnoseCropDisease } from "../../tools/diagnoseCropDisease";
 import CameraDiagnosisModal from "../components/CameraDiagnosisModal";
 
 import type { MarketDataResult } from "tools/getMarketData";
-import DashboardView from "../components/DashboardView";
+import DashboardView, { type ToolResponse } from "../components/DashboardView";
 import { BiReset } from "react-icons/bi";
 import { TbTrash } from "react-icons/tb";
 
@@ -43,41 +43,38 @@ const LiveAudio: React.FC = () => {
 
   // Listen for AI or tool result updates and show as live prompter
   // We'll update setLivePrompt in the onMarketDataReceived and in GeminiSession's onmessage
-  const handleMarketDataReceived = useCallback(
-    (data: MarketDataResult | Record<string, MarketDataResult>) => {
-      // If it's a compare_state_market_data result (object of MarketDataResult), join summaries
-      if (
-        data &&
-        typeof data === "object" &&
-        !Array.isArray(data) &&
-        Object.values(data)[0]?.summary
-      ) {
-        setLivePrompt(
-          Object.entries(data)
-            .map(
-              ([region, res]) =>
-                `**${region}**: ${(res as any).summary || "No summary"}`
-            )
-            .join("\n\n")
-        );
-        setDashboardError("");
-      } else if (
-        data &&
-        typeof data === "object" &&
-        (data as MarketDataResult).summary
-      ) {
-        setLivePrompt((data as MarketDataResult).summary);
-        setDashboardError("");
-      } else if (data && (data as any).error) {
-        setDashboardError((data as any).error);
-        setLivePrompt("");
-      } else {
-        setLivePrompt("");
-      }
-      setDashboardData((prev) => [...prev, data]); // append new data to chat history
-    },
-    []
-  );
+  const handleMarketDataReceived = useCallback((data: ToolResponse) => {
+    // If it's a compare_state_market_data result (object of MarketDataResult), join summaries
+    if (
+      data &&
+      typeof data === "object" &&
+      !Array.isArray(data) &&
+      Object.values(data)[0]?.summary
+    ) {
+      setLivePrompt(
+        Object.entries(data)
+          .map(
+            ([region, res]) =>
+              `**${region}**: ${(res as any).summary || "No summary"}`
+          )
+          .join("\n\n")
+      );
+      setDashboardError("");
+    } else if (
+      data &&
+      typeof data === "object" &&
+      (data as MarketDataResult).summary
+    ) {
+      setLivePrompt((data as MarketDataResult).summary);
+      setDashboardError("");
+    } else if (data && (data as any).error) {
+      setDashboardError((data as any).error);
+      setLivePrompt("");
+    } else {
+      setLivePrompt("");
+    }
+    setDashboardData((prev) => [...prev, data]); // append new data to chat history
+  }, []);
 
   // Custom hook for AudioContexts and GainNodes
   const {

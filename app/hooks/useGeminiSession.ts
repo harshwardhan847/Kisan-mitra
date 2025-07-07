@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { GoogleGenAI, Modality } from "@google/genai";
+import {
+  Behavior,
+  FunctionResponseScheduling,
+  GoogleGenAI,
+  Modality,
+} from "@google/genai";
 import { decode, decodeAudioData } from "~/utils/audio";
 import {
   formatDateToDDMMYYYY,
@@ -19,7 +24,9 @@ import {
 import {
   diagnoseCropDisease,
   diagnoseCropDiseaseFunctionDeclaration,
+  type CropDiseaseDiagnosis,
 } from "tools/diagnoseCropDisease";
+import type { ToolResponse } from "~/components/DashboardView";
 
 // Define the interface for search results, moved here as it's directly used.
 interface SearchResult {
@@ -35,7 +42,7 @@ interface UseGeminiSessionProps {
   updateStatus: (msg: string) => void;
   updateError: (msg: string) => void;
   setSearchResults: (results: SearchResult[]) => void;
-  onMarketDataReceived: (data: MarketDataResult) => void;
+  onMarketDataReceived: (data: ToolResponse) => void;
   setLoading?: (loading: { active: boolean; toolName?: string }) => void;
   onRequestImageForDiagnosis?: (cb: (image: string) => void) => void; // <-- AGENT-DRIVEN
 }
@@ -128,6 +135,8 @@ no matter what the previous language of conversation was now you have to talk in
             const modelTurn = message.serverContent?.modelTurn;
             const interrupted = message.serverContent?.interrupted;
             const toolCall = message.toolCall;
+            const thoughtSignature = message.serverContent?.thoughtSignature;
+            // set grounding metadata
 
             // Handle search results (grounding metadata)
             if (
@@ -151,117 +160,167 @@ no matter what the previous language of conversation was now you have to talk in
                   active: true,
                   toolName: toolCall.functionCalls?.[0]?.name || "Tool",
                 });
-              const functionResponses = [];
-              for (const fc of toolCall.functionCalls) {
-                let toolResult: any;
-                if (fc.name === "get_market_data") {
-                  if (fc.args && typeof fc.args.commodityName === "string") {
-                    toolResult = await getMarketData(
-                      fc.args.commodityName,
-                      fc.args.state,
-                      fc.args.district,
-                      fc.args.market,
-                      fc.args.arrivalDate,
-                      fc.args.startDate,
-                      fc.args.endDate
-                    );
-                    onMarketDataReceived(toolResult);
-                  } else {
-                    toolResult = {
-                      error:
-                        "Missing or invalid 'commodityName' argument for get_market_data.",
-                    };
-                    onMarketDataReceived(toolResult);
-                  }
-                } else if (fc.name === "compare_state_market_data") {
-                  if (
-                    fc.args &&
-                    typeof fc.args.commodityName === "string" &&
-                    (Array.isArray(fc.args.states) ||
-                      Array.isArray(fc.args.district))
-                  ) {
-                    const regions =
-                      Array.isArray(fc.args.states) && fc.args.states.length > 0
-                        ? fc.args.states
-                        : fc.args.district;
-                    toolResult = await compareStateMarketData(
-                      fc.args.commodityName,
-                      regions,
-                      fc.args.arrivalDate,
-                      fc.args.startDate,
-                      fc.args.endDate
-                    );
-                    onMarketDataReceived(toolResult);
-                  } else {
-                    toolResult = {
-                      error:
-                        "Missing or invalid arguments for compare_state_market_data. Must provide commodityName and at least one of states or district.",
-                    };
-                    onMarketDataReceived(toolResult);
-                  }
-                } else if (fc.name === "get_government_schemes") {
-                  if (
-                    fc.args &&
-                    typeof fc.args.query === "string" &&
-                    typeof fc.args.location === "string"
-                  ) {
-                    toolResult = await getGovernmentSchemes(
-                      fc.args.query,
-                      fc.args.location,
-                      currentLanguage
-                    );
-                  } else {
-                    toolResult = {
-                      error:
-                        "Missing or invalid arguments for get_government_schemes. Must provide query and location.",
-                    };
-                  }
-                  onMarketDataReceived(toolResult);
-                } else if (fc.name === "diagnose_crop_disease") {
-                  if (onRequestImageForDiagnosis) {
-                    // Always ask UI to get image, then call tool
-                    await new Promise<void>((resolve) => {
-                      onRequestImageForDiagnosis(async (image: string) => {
-                        toolResult = await diagnoseCropDisease(
-                          image,
+              const functionResponses: any[] = [];
+
+              await Promise.all(
+                toolCall.functionCalls.map(async (fc: any) => {
+                  let toolResult: any;
+                  console.log("Tool Name", fc.name, fc.id);
+                  switch (fc.name) {
+                    case "get_market_data":
+                      if (
+                        fc.args &&
+                        typeof fc.args.commodityName === "string"
+                      ) {
+                        toolResult = await getMarketData(
+                          fc.args.commodityName,
+                          fc.args.state,
+                          fc.args.district,
+                          fc.args.market,
+                          fc.args.arrivalDate,
+                          fc.args.startDate,
+                          fc.args.endDate
+                        );
+                        onMarketDataReceived(toolResult);
+                      } else {
+                        toolResult = {
+                          error:
+                            "Missing or invalid 'commodityName' argument for get_market_data.",
+                        };
+                        onMarketDataReceived(toolResult);
+                      }
+                      break;
+                    case "compare_state_market_data":
+                      if (
+                        fc.args &&
+                        typeof fc.args.commodityName === "string" &&
+                        (Array.isArray(fc.args.states) ||
+                          Array.isArray(fc.args.district))
+                      ) {
+                        const regions =
+                          Array.isArray(fc.args.states) &&
+                          fc.args.states.length > 0
+                            ? fc.args.states
+                            : fc.args.district;
+                        toolResult = await compareStateMarketData(
+                          fc.args.commodityName,
+                          regions,
+                          fc.args.arrivalDate,
+                          fc.args.startDate,
+                          fc.args.endDate
+                        );
+                        onMarketDataReceived(toolResult);
+                      } else {
+                        toolResult = {
+                          error:
+                            "Missing or invalid arguments for compare_state_market_data. Must provide commodityName and at least one of states or district.",
+                        };
+                        onMarketDataReceived(toolResult);
+                      }
+                      break;
+                    case "get_government_schemes":
+                      if (
+                        fc.args &&
+                        typeof fc.args.query === "string" &&
+                        typeof fc.args.location === "string"
+                      ) {
+                        toolResult = await getGovernmentSchemes(
+                          fc.args.query,
+                          fc.args.location,
+                          currentLanguage
+                        );
+                      } else {
+                        toolResult = {
+                          error:
+                            "Missing or invalid arguments for get_government_schemes. Must provide query and location.",
+                        };
+                      }
+                      onMarketDataReceived(toolResult);
+                      break;
+                    case "diagnose_crop_disease":
+                      if (onRequestImageForDiagnosis) {
+                        // Defer execution to UI for image capture
+                        await new Promise<void>((resolve) => {
+                          onRequestImageForDiagnosis(async (image: string) => {
+                            try {
+                              const toolResult = await diagnoseCropDisease(
+                                image,
+                                currentLanguage
+                              );
+                              onMarketDataReceived(toolResult);
+                              functionResponses.push({
+                                id: fc.id,
+                                name: fc.name,
+                                response: {
+                                  result: toolResult,
+                                  scheduling:
+                                    FunctionResponseScheduling.INTERRUPT, // allow Gemini to continue thinking
+                                },
+                              });
+                            } catch (err) {
+                              functionResponses.push({
+                                id: fc.id,
+                                name: fc.name,
+                                response: {
+                                  result: { error: "Image diagnosis failed." },
+                                  scheduling:
+                                    FunctionResponseScheduling.INTERRUPT,
+                                },
+                              });
+                            }
+                            resolve(); // resume tool call chain
+                          });
+                        });
+                        break; // move to next tool call
+                      } else if (fc.args && typeof fc.args.image === "string") {
+                        const toolResult = await diagnoseCropDisease(
+                          fc.args.image,
                           currentLanguage
                         );
                         onMarketDataReceived(toolResult);
                         functionResponses.push({
                           id: fc.id,
                           name: fc.name,
-                          response: { result: toolResult },
+                          response: {
+                            result: toolResult,
+                            scheduling: FunctionResponseScheduling.INTERRUPT,
+                          },
                         });
-                        resolve();
-                      });
-                    });
-                    continue;
-                  } else if (fc.args && typeof fc.args.image === "string") {
-                    toolResult = await diagnoseCropDisease(
-                      fc.args.image,
-                      currentLanguage
-                    );
-                    onMarketDataReceived(toolResult);
-                  } else {
-                    toolResult = {
-                      error:
-                        "Missing or invalid arguments for diagnose_crop_disease. Must provide image.",
-                    };
-                    onMarketDataReceived(toolResult);
+                      } else {
+                        const toolResult = {
+                          error:
+                            "Missing or invalid arguments for diagnose_crop_disease. Must provide image.",
+                        };
+                        onMarketDataReceived(toolResult);
+                        functionResponses.push({
+                          id: fc.id,
+                          name: fc.name,
+                          response: {
+                            result: toolResult,
+                            scheduling: FunctionResponseScheduling.INTERRUPT,
+                          },
+                        });
+                      }
+                      break;
+                    default:
+                      toolResult = { error: `Unknown tool: ${fc.name}` };
+                      onMarketDataReceived(toolResult);
                   }
-                } else {
-                  toolResult = { error: `Unknown tool: ${fc.name}` };
-                  onMarketDataReceived(toolResult);
-                }
-                functionResponses.push({
-                  id: fc.id,
-                  name: fc.name,
-                  response: { result: toolResult },
-                });
-              }
+                  functionResponses.push({
+                    id: fc.id,
+                    name: fc.name,
+                    response: {
+                      result: toolResult,
+                      scheduling: FunctionResponseScheduling.INTERRUPT,
+                    },
+                  });
+                })
+              );
+
               if (setLoading) setLoading({ active: false });
-              sessionRef.current?.sendToolResponse({
+              await sessionRef.current?.sendToolResponse({
                 functionResponses: functionResponses,
+                thoughtSignature,
               });
               return; // Stop processing further if a tool call was handled
             }
@@ -346,15 +405,20 @@ no matter what the previous language of conversation was now you have to talk in
         },
         config: {
           responseModalities: [Modality.AUDIO],
+
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Orus" } },
             languageCode: currentLanguage, // Use language from context
           },
+
           tools: [
             {
               googleSearch: {},
               functionDeclarations: [
-                marketDataFunctionDeclaration,
+                {
+                  ...marketDataFunctionDeclaration,
+                  behavior: Behavior.NON_BLOCKING,
+                },
                 compareStateMarketDataFunctionDeclaration,
                 getGovernmentSchemesFunctionDeclaration,
                 diagnoseCropDiseaseFunctionDeclaration,
