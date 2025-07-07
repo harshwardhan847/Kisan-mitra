@@ -267,11 +267,16 @@ keep the conversation concise and to the point like a real chat.
             // --- AI IMAGE REQUEST DETECTION LOGIC ---
             // If the AI is asking for an image for diagnosis, trigger the modal immediately
             if (onRequestImageForDiagnosis) {
-              const text = message.serverContent?.modelTurn?.parts?.[0]?.text || "";
+              const text =
+                message.serverContent?.modelTurn?.parts?.[0]?.text || "";
               // Regex/keywords for image request (customize as needed)
-              const imageRequestRegex = /((provide|upload|send|attach|share) (an? |the )?(image|photo|picture|snapshot|photograph))/i;
+              const imageRequestRegex =
+                /((provide|upload|send|attach|share) (an? |the )?(image|photo|picture|snapshot|photograph))/i;
               // Use a ref to avoid repeated triggers for the same prompt
-              if (!sessionRef.current?._imageRequestPending && imageRequestRegex.test(text)) {
+              if (
+                !sessionRef.current?._imageRequestPending &&
+                imageRequestRegex.test(text)
+              ) {
                 sessionRef.current._imageRequestPending = true;
                 onRequestImageForDiagnosis(async (image: string) => {
                   // After image is provided, clear the flag
