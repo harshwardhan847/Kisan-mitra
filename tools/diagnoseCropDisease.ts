@@ -30,7 +30,7 @@ export interface CropDiseaseDiagnosis {
   markdown?: string; // Add markdown field for UI rendering
 }
 
-// Stub: Replace with real image analysis or ML model
+// Pure tool function: expects image as parameter, returns diagnosis
 export async function diagnoseCropDisease(
   image: string,
   language?: string
@@ -41,7 +41,6 @@ export async function diagnoseCropDisease(
     if (!lang) lang = useLanguage().currentLanguage;
   } catch {}
 
-  // Use Gemini model for image diagnosis
   try {
     const apiKey = "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo";
     const client = new GoogleGenAI({ apiKey });

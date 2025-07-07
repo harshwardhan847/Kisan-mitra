@@ -37,6 +37,7 @@ interface UseGeminiSessionProps {
   setSearchResults: (results: SearchResult[]) => void;
   onMarketDataReceived: (data: MarketDataResult) => void;
   setLoading?: (loading: { active: boolean; toolName?: string }) => void;
+  onRequestImageForDiagnosis?: (cb: (image: string) => void) => void; // <-- AGENT-DRIVEN
 }
 
 interface GeminiSessionHook {
@@ -55,6 +56,7 @@ export const useGeminiSession = ({
   setSearchResults,
   onMarketDataReceived,
   setLoading,
+  onRequestImageForDiagnosis, // <-- AGENT-DRIVEN
 }: UseGeminiSessionProps): GeminiSessionHook => {
   const { currentLanguage } = useLanguage();
   const clientRef = useRef<GoogleGenAI | null>(null);
@@ -82,7 +84,7 @@ export const useGeminiSession = ({
 Your mission is to:
 1. Guide farmers with accurate market price data and selling suggestions.
 2. Recommend suitable government schemes like subsidies, insurance, or loan offers.
-3. Diagnose crop diseases from uploaded images and suggest cures.
+3. Diagnose crop diseases from diagnose_crop_disease tool and suggest cures (image will be taken after tool call).
 
 💬 Language Guidelines:
 - Always reply in the language **explicitly selected by the user**, or infer from the input language.
@@ -99,7 +101,7 @@ Your mission is to:
 1. \`get_market_data(commodityName: string, state?: string, district?: string, market?: string, arrivalDate?: string, startDate?: string, endDate?: string)\`
 2. \`compare_state_market_data(commodityName: string, states?: string[], district?: string[], arrivalDate?: string, startDate?: string, endDate?: string)\`
 3. \`get_government_schemes(query: str, location: str)\`  
-4. \`diagnose_crop_disease(image: binary | URL)\`
+4. \`diagnose_crop_disease(no parameter's required. image will be taken after tool call)\`
 
 
 🔁 Interaction Guidelines:
@@ -214,18 +216,37 @@ keep the conversation concise and to the point like a real chat.
                   }
                   onMarketDataReceived(toolResult);
                 } else if (fc.name === "diagnose_crop_disease") {
-                  if (fc.args && typeof fc.args.image === "string") {
+                  if (onRequestImageForDiagnosis) {
+                    // Always ask UI to get image, then call tool
+                    await new Promise<void>((resolve) => {
+                      onRequestImageForDiagnosis(async (image: string) => {
+                        toolResult = await diagnoseCropDisease(
+                          image,
+                          currentLanguage
+                        );
+                        onMarketDataReceived(toolResult);
+                        functionResponses.push({
+                          id: fc.id,
+                          name: fc.name,
+                          response: { result: toolResult },
+                        });
+                        resolve();
+                      });
+                    });
+                    continue;
+                  } else if (fc.args && typeof fc.args.image === "string") {
                     toolResult = await diagnoseCropDisease(
                       fc.args.image,
                       currentLanguage
                     );
+                    onMarketDataReceived(toolResult);
                   } else {
                     toolResult = {
                       error:
                         "Missing or invalid arguments for diagnose_crop_disease. Must provide image.",
                     };
+                    onMarketDataReceived(toolResult);
                   }
-                  onMarketDataReceived(toolResult);
                 } else {
                   toolResult = { error: `Unknown tool: ${fc.name}` };
                   onMarketDataReceived(toolResult);
@@ -241,6 +262,24 @@ keep the conversation concise and to the point like a real chat.
                 functionResponses: functionResponses,
               });
               return; // Stop processing further if a tool call was handled
+            }
+
+            // --- AI IMAGE REQUEST DETECTION LOGIC ---
+            // If the AI is asking for an image for diagnosis, trigger the modal immediately
+            if (onRequestImageForDiagnosis) {
+              const text = message.serverContent?.modelTurn?.parts?.[0]?.text || "";
+              // Regex/keywords for image request (customize as needed)
+              const imageRequestRegex = /((provide|upload|send|attach|share) (an? |the )?(image|photo|picture|snapshot|photograph))/i;
+              // Use a ref to avoid repeated triggers for the same prompt
+              if (!sessionRef.current?._imageRequestPending && imageRequestRegex.test(text)) {
+                sessionRef.current._imageRequestPending = true;
+                onRequestImageForDiagnosis(async (image: string) => {
+                  // After image is provided, clear the flag
+                  sessionRef.current._imageRequestPending = false;
+                  // Optionally, you can call the tool here if you want to auto-diagnose
+                  // await diagnoseCropDisease(image, currentLanguage);
+                });
+              }
             }
 
             // Handle audio playback

@@ -4,6 +4,7 @@ import { useLanguage, LANGUAGE_OPTIONS } from "../context/LanguageContext";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
 import { diagnoseCropDisease } from "../../tools/diagnoseCropDisease";
+import CameraDiagnosisModal from "../components/CameraDiagnosisModal";
 
 import type { MarketDataResult } from "tools/getMarketData";
 import DashboardView from "../components/DashboardView";
@@ -31,7 +32,8 @@ const LiveAudio: React.FC = () => {
   const [dashboardError, setDashboardError] = useState<string>(""); // For Gemini/context errors
   const [diagnoseLoading, setDiagnoseLoading] = useState(false);
   const [diagnosePreview, setDiagnosePreview] = useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [pendingAgentDiagnosis, setPendingAgentDiagnosis] = useState(false);
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
@@ -84,6 +86,17 @@ const LiveAudio: React.FC = () => {
     nextStartTime,
   } = useAudioContexts();
 
+  // Handler for agent-driven diagnosis (tool call)
+  const handleAgentDiagnoseRequest = useCallback(
+    (cb: (image: string) => void) => {
+      setCameraOpen(true);
+      setPendingAgentDiagnosis(true);
+      // Store callback to be called after image capture
+      (window as any).__agentDiagnosisCallback = cb;
+    },
+    []
+  );
+
   // Custom hook for Gemini Session management
   const {
     session,
@@ -99,7 +112,7 @@ const LiveAudio: React.FC = () => {
     setSearchResults: setSearchResults, // Pass local state setter to update results from hook
     onMarketDataReceived: handleMarketDataReceived,
     setLoading, // Pass loading setter to hook
-    // When you call getMarketData or compareStateMarketData, pass getPreviousChats() as the last argument
+    onRequestImageForDiagnosis: handleAgentDiagnoseRequest, // <-- AGENT-DRIVEN
   });
 
   // Custom hook for Audio Recording
@@ -122,43 +135,32 @@ const LiveAudio: React.FC = () => {
     setLivePrompt("");
   };
 
-  // Handler for manual crop disease diagnosis
-  const handleManualDiagnose = useCallback(
-    async (imageUrl: string) => {
-      setDiagnosePreview(imageUrl);
-      setDiagnoseLoading(true);
-      try {
-        const result = await diagnoseCropDisease(imageUrl, currentLanguage);
-        setDashboardData((prev) => [...prev, result]);
-      } catch (e) {
-        setDashboardError("Failed to diagnose crop disease. Please try again.");
-      } finally {
-        setDiagnoseLoading(false);
-        setDiagnosePreview(null);
-      }
-    },
-    [currentLanguage]
-  );
-
-  // Camera button click handler
-  const handleCameraButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear previous value to allow re-uploading same image
-      fileInputRef.current.click();
-    }
+  // Handler for manual crop disease diagnosis (button click)
+  const handleManualDiagnoseRequest = () => {
+    setCameraOpen(true);
+    setPendingAgentDiagnosis(false);
   };
 
-  // File input change handler
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          handleManualDiagnose(ev.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+  // When image is captured from modal
+  const handleImageCapture = async (image: string) => {
+    setCameraOpen(false);
+    setDiagnoseLoading(true);
+    setDiagnosePreview(image);
+    try {
+      // Always call the agent callback if it exists
+      if ((window as any).__agentDiagnosisCallback) {
+        (window as any).__agentDiagnosisCallback(image);
+        (window as any).__agentDiagnosisCallback = undefined;
+      } else {
+        const result = await diagnoseCropDisease(image, currentLanguage);
+        setDashboardData((prev) => [...prev, result]);
+      }
+    } catch {
+      setDashboardError("Failed to diagnose crop disease. Please try again.");
+    } finally {
+      setDiagnoseLoading(false);
+      setDiagnosePreview(null);
+      setPendingAgentDiagnosis(false);
     }
   };
 
@@ -247,7 +249,7 @@ const LiveAudio: React.FC = () => {
       <div className="w-full flex flex-col items-center mt-8">
         <button
           className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 shadow-lg mb-2"
-          onClick={handleCameraButtonClick}
+          onClick={handleManualDiagnoseRequest}
           disabled={diagnoseLoading}
           aria-label="Diagnose Crop Disease (Camera)"
         >
@@ -274,14 +276,6 @@ const LiveAudio: React.FC = () => {
           </svg>
           Diagnose Crop Disease
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
         <div className="text-xs text-gray-400">
           Take a clear photo of the affected plant part for best results.
         </div>
@@ -301,6 +295,11 @@ const LiveAudio: React.FC = () => {
           </div>
         )}
       </div>
+      <CameraDiagnosisModal
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleImageCapture}
+      />
 
       {/* Controls */}
       <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center justify-center gap-4 z-10">
