@@ -8,6 +8,8 @@ import CameraDiagnosisModal from "../components/CameraDiagnosisModal";
 
 import type { MarketDataResult } from "tools/getMarketData";
 import DashboardView from "../components/DashboardView";
+import { BiReset } from "react-icons/bi";
+import { TbTrash } from "react-icons/tb";
 
 interface SearchResult {
   uri: string;
@@ -210,7 +212,10 @@ const LiveAudio: React.FC = () => {
         <select
           id="language-select"
           value={currentLanguage}
-          onChange={(e) => setCurrentLanguage(e.target.value)}
+          onChange={(e) => {
+            setCurrentLanguage(e.target.value);
+            stopRecording();
+          }}
           className="bg-gray-800 text-white rounded px-3 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           {LANGUAGE_OPTIONS.map((opt) => (
@@ -247,38 +252,6 @@ const LiveAudio: React.FC = () => {
 
       {/* Camera Button for Crop Disease Diagnosis */}
       <div className="w-full flex flex-col items-center mt-8">
-        <button
-          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 shadow-lg mb-2"
-          onClick={handleManualDiagnoseRequest}
-          disabled={diagnoseLoading}
-          aria-label="Diagnose Crop Disease (Camera)"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="w-6 h-6"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 15.75v-7.5A2.25 2.25 0 014.5 6h2.379a1.5 1.5 0 001.06-.44l.94-.94A1.5 1.5 0 0110.44 4.5h3.12a1.5 1.5 0 011.06.44l.94.94a1.5 1.5 0 001.06.44H19.5a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-15A2.25 2.25 0 012.25 15.75z"
-            />
-            <circle
-              cx="12"
-              cy="12"
-              r="3.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-          </svg>
-          Diagnose Crop Disease
-        </button>
-        <div className="text-xs text-gray-400">
-          Take a clear photo of the affected plant part for best results.
-        </div>
         {diagnosePreview && (
           <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center mt-4">
             <div className="text-red-200 font-semibold mb-2">Preview</div>
@@ -301,9 +274,51 @@ const LiveAudio: React.FC = () => {
         onCapture={handleImageCapture}
       />
 
+      {/* Live Text Prompter & Dashboard */}
+      <div className="flex-1 flex items-center justify-center w-full">
+        {dashboardData.length > 0 && (
+          <div className="w-full flex flex-col items-center">
+            {dashboardError && (
+              <div className="mb-4 p-4 bg-red-700 text-white rounded shadow max-w-xl w-full text-center">
+                <strong>Error:</strong> {dashboardError}
+              </div>
+            )}
+            <DashboardView results={dashboardData} />
+          </div>
+        )}
+      </div>
+
       {/* Controls */}
-      <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center justify-center gap-4 z-10">
-        <div className="flex space-x-4">
+      <div className=" flex flex-col items-center justify-center gap-4 z-10">
+        <div className="flex gap-x-4 items-stretch justify-stretch w-full">
+          <button
+            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 shadow-lg mb-2"
+            onClick={handleManualDiagnoseRequest}
+            disabled={diagnoseLoading}
+            aria-label="Diagnose Crop Disease (Camera)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-6 h-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M2.25 15.75v-7.5A2.25 2.25 0 014.5 6h2.379a1.5 1.5 0 001.06-.44l.94-.94A1.5 1.5 0 0110.44 4.5h3.12a1.5 1.5 0 011.06.44l.94.94a1.5 1.5 0 001.06.44H19.5a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-15A2.25 2.25 0 012.25 15.75z"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+            </svg>
+          </button>
           <button
             id="resetButton"
             onClick={resetSession} // Use the resetSession from hook
@@ -311,15 +326,7 @@ const LiveAudio: React.FC = () => {
             aria-label="Reset Session"
             className="p-4 rounded-full bg-gray-700 text-white shadow-lg hover:bg-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hidden"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 0 24 24"
-              width="24px"
-              fill="#ffffff"
-            >
-              <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
-            </svg>
+            <BiReset size={35} />
           </button>
           <button
             id="clearHistoryButton"
@@ -329,18 +336,7 @@ const LiveAudio: React.FC = () => {
             className="p-4 rounded-full bg-yellow-600 text-white shadow-lg hover:bg-yellow-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {/* Trash/clear icon */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                fill="#fff"
-                d="M7 4V2h10v2h5v2H2V4h5zm2 0h6V4H9v0zm-5 4h16l-1.5 14.5A2 2 0 0 1 16.5 22h-9a2 2 0 0 1-1.99-1.5L3 8zm5 2v8h2v-8H8zm4 0v8h2v-8h-2z"
-              />
-            </svg>
+            <TbTrash size={35} />
           </button>
           <button
             id="startButton"
@@ -382,38 +378,9 @@ const LiveAudio: React.FC = () => {
       {/* Status Display */}
       <div
         id="status"
-        className="absolute bottom-5 left-0 right-0 z-10 text-center text-lg font-medium text-blue-300"
+        className="z-10 text-center text-lg font-medium text-blue-300"
       >
         {error ? `Error: ${error}` : status}
-      </div>
-
-      {/* Live Text Prompter & Dashboard */}
-      <div className="flex-1 flex items-center justify-center w-full">
-        {dashboardData.length > 0 && (
-          <div className="w-full flex flex-col items-center">
-            {dashboardError && (
-              <div className="mb-4 p-4 bg-red-700 text-white rounded shadow max-w-xl w-full text-center">
-                <strong>Error:</strong> {dashboardError}
-              </div>
-            )}
-            <DashboardView results={dashboardData} />
-            {/* Advanced chart/export placeholder */}
-            <div className="mt-4 flex gap-4">
-              <button
-                className="px-4 py-2 bg-blue-700 rounded text-white opacity-60 cursor-not-allowed"
-                disabled
-              >
-                Export (Coming Soon)
-              </button>
-              <button
-                className="px-4 py-2 bg-green-700 rounded text-white opacity-60 cursor-not-allowed"
-                disabled
-              >
-                Advanced Charts (Coming Soon)
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 3D Visualizer Component */}

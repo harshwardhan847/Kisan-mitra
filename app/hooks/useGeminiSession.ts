@@ -76,6 +76,7 @@ export const useGeminiSession = ({
     const model = "gemini-live-2.5-flash-preview";
 
     const systemInstructions = `You are **Kisan Mitra**, a multilingual AI agent built to assist Indian farmers across all states in their native or preferred languages.
+    currently talk me with ${currentLanguage} language
 
 🗓️ Today’s Date: {{current_date}}  
 🕒 Local Time: {{current_time}} IST  
@@ -112,7 +113,8 @@ Your mission is to:
 
 You are not a chatbot — you are a dependable, trusted digital assistant for a farmer’s livelihood.
 keep the conversation concise and to the point like a real chat.
-
+Give all the results in ${currentLanguage} language.
+no matter what the previous language of conversation was now you have to talk in ${currentLanguage}
 `;
 
     try {
@@ -282,7 +284,7 @@ keep the conversation concise and to the point like a real chat.
                   // After image is provided, clear the flag
                   sessionRef.current._imageRequestPending = false;
                   // Optionally, you can call the tool here if you want to auto-diagnose
-                  // await diagnoseCropDisease(image, currentLanguage);
+                  await diagnoseCropDisease(image, currentLanguage);
                 });
               }
             }
@@ -362,6 +364,7 @@ keep the conversation concise and to the point like a real chat.
           systemInstruction: {
             parts: [{ text: systemInstructions }],
           },
+          generationConfig: { speechConfig: { languageCode: currentLanguage } },
         },
       });
       sessionRef.current = session;
