@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import type { MandiRecord, MarketDataResult } from "../../tools/getMarketData";
 import type { GovernmentSchemesResult } from "../../tools/getGovernmentSchemes";
 import type { CropDiseaseDiagnosis } from "../../tools/diagnoseCropDisease";
@@ -176,7 +176,14 @@ const RechartsChart: React.FC<{ chartType?: string; chartData?: any }> = ({
 };
 
 interface DashboardViewProps {
-  results: (MarketDataResult | Record<string, MarketDataResult>)[];
+  results: (
+    | MarketDataResult
+    | Record<string, MarketDataResult>
+    | GovernmentSchemesResult
+    | CropDiseaseDiagnosis
+  )[];
+  onDiagnoseCropDisease?: (image: string) => Promise<void>;
+  isDiagnosing?: boolean;
 }
 
 const SchemeCard: React.FC<{ result: GovernmentSchemesResult }> = ({
@@ -222,107 +229,50 @@ const DiseaseCard: React.FC<{ result: CropDiseaseDiagnosis }> = ({
     <div className="text-red-300 text-lg mb-2 font-semibold">
       Crop Disease Diagnosis
     </div>
-    <div className="mb-2">
-      <span className="font-bold text-red-200">Disease:</span>{" "}
-      {result.diseaseName}
-    </div>
-    <div className="mb-2">
-      <span className="font-bold text-blue-200">Cause:</span> {result.cause}
-    </div>
-    <div className="mb-2">
-      <span className="font-bold text-green-200">Treatment Steps:</span>
-      <ul className="list-disc ml-6 text-blue-100">
-        {result.treatment.map((step, i) => (
-          <li key={i}>{step}</li>
-        ))}
-      </ul>
-    </div>
-    {result.warnings && result.warnings.length > 0 && (
-      <div className="mb-2">
-        <span className="font-bold text-yellow-300">Warnings:</span>
-        <ul className="list-disc ml-6 text-yellow-200">
-          {result.warnings.map((w, i) => (
-            <li key={i}>{w}</li>
-          ))}
-        </ul>
-      </div>
+    {result.markdown ? (
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {result.markdown}
+      </ReactMarkdown>
+    ) : (
+      <>
+        <div className="mb-2">
+          <span className="font-bold text-red-200">Disease:</span>{" "}
+          {result.diseaseName}
+        </div>
+        <div className="mb-2">
+          <span className="font-bold text-blue-200">Cause:</span> {result.cause}
+        </div>
+        <div className="mb-2">
+          <span className="font-bold text-green-200">Treatment Steps:</span>
+          <ul className="list-disc ml-6 text-blue-100">
+            {result.treatment.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ul>
+        </div>
+        {result.warnings && result.warnings.length > 0 && (
+          <div className="mb-2">
+            <span className="font-bold text-yellow-300">Warnings:</span>
+            <ul className="list-disc ml-6 text-yellow-200">
+              {result.warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
     )}
   </div>
 );
 
-const DiagnoseCropDiseaseInput: React.FC<{
-  onImageSelected: (imageUrl: string) => void;
-}> = ({ onImageSelected }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          onImageSelected(ev.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  return (
-    <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center mb-4">
-      <div className="text-red-200 text-lg font-semibold mb-2">
-        Diagnose Crop Disease
-      </div>
-      <button
-        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mb-2"
-        onClick={handleButtonClick}
-      >
-        Upload or Take Photo
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
-      <div className="text-xs text-gray-400">
-        Take a clear photo of the affected plant part for best results.
-      </div>
-    </div>
-  );
-};
-
-const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
-  const [pendingImage, setPendingImage] = React.useState<string | null>(null);
-  // Render each result as a chat bubble/card, oldest at top
-  const handleImageSelected = (imageUrl: string) => {
-    setPendingImage(imageUrl);
-    // You should call the diagnoseCropDisease tool here, e.g. via a prop or context
-    // For now, just set the image as pending; integration with tool invocation is needed
-  };
+const DashboardView: React.FC<DashboardViewProps> = ({
+  results,
+  onDiagnoseCropDisease,
+  isDiagnosing,
+}) => {
   return (
     <div className="w-full flex flex-col items-center gap-6 max-h-[80vh] overflow-y-scroll">
-      {/* Diagnose Crop Disease input always at the top */}
-      <DiagnoseCropDiseaseInput onImageSelected={handleImageSelected} />
-      {pendingImage && (
-        <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center">
-          <div className="text-red-200 font-semibold mb-2">Preview</div>
-          <img
-            src={pendingImage}
-            alt="Selected crop disease"
-            className="max-h-64 rounded mb-2"
-          />
-          <div className="text-xs text-gray-400 mb-2">
-            Image ready for analysis. (Integrate with tool call to analyze.)
-          </div>
-        </div>
-      )}
+      {/* Only render results as cards */}
       {results.map((result, chatIdx) => {
         // Defensive: skip null/undefined
         if (!result) return null;

@@ -3,7 +3,8 @@ import { useAudioContexts } from "~/hooks/useAudioContexts";
 import { useLanguage, LANGUAGE_OPTIONS } from "../context/LanguageContext";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
-import PriceDetailsModal from "~/../components/PriceDetailsModal";
+import { diagnoseCropDisease } from "../../tools/diagnoseCropDisease";
+
 import type { MarketDataResult } from "tools/getMarketData";
 import DashboardView from "../components/DashboardView";
 
@@ -28,6 +29,9 @@ const LiveAudio: React.FC = () => {
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const [dashboardData, setDashboardData] = useState<any[]>([]); // chat history
   const [dashboardError, setDashboardError] = useState<string>(""); // For Gemini/context errors
+  const [diagnoseLoading, setDiagnoseLoading] = useState(false);
+  const [diagnosePreview, setDiagnosePreview] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Memoized callbacks for status and error updates
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
@@ -118,6 +122,46 @@ const LiveAudio: React.FC = () => {
     setLivePrompt("");
   };
 
+  // Handler for manual crop disease diagnosis
+  const handleManualDiagnose = useCallback(
+    async (imageUrl: string) => {
+      setDiagnosePreview(imageUrl);
+      setDiagnoseLoading(true);
+      try {
+        const result = await diagnoseCropDisease(imageUrl, currentLanguage);
+        setDashboardData((prev) => [...prev, result]);
+      } catch (e) {
+        setDashboardError("Failed to diagnose crop disease. Please try again.");
+      } finally {
+        setDiagnoseLoading(false);
+        setDiagnosePreview(null);
+      }
+    },
+    [currentLanguage]
+  );
+
+  // Camera button click handler
+  const handleCameraButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Clear previous value to allow re-uploading same image
+      fileInputRef.current.click();
+    }
+  };
+
+  // File input change handler
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          handleManualDiagnose(ev.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
       {/* Loading Overlay */}
@@ -198,6 +242,65 @@ const LiveAudio: React.FC = () => {
           </ul>
         </div>
       )}
+
+      {/* Camera Button for Crop Disease Diagnosis */}
+      <div className="w-full flex flex-col items-center mt-8">
+        <button
+          className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 shadow-lg mb-2"
+          onClick={handleCameraButtonClick}
+          disabled={diagnoseLoading}
+          aria-label="Diagnose Crop Disease (Camera)"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-6 h-6"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 15.75v-7.5A2.25 2.25 0 014.5 6h2.379a1.5 1.5 0 001.06-.44l.94-.94A1.5 1.5 0 0110.44 4.5h3.12a1.5 1.5 0 011.06.44l.94.94a1.5 1.5 0 001.06.44H19.5a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-15A2.25 2.25 0 012.25 15.75z"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="3.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+          </svg>
+          Diagnose Crop Disease
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+        <div className="text-xs text-gray-400">
+          Take a clear photo of the affected plant part for best results.
+        </div>
+        {diagnosePreview && (
+          <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center mt-4">
+            <div className="text-red-200 font-semibold mb-2">Preview</div>
+            <img
+              src={diagnosePreview}
+              alt="Selected crop disease"
+              className="max-h-64 rounded mb-2"
+            />
+            <div className="text-xs text-gray-400 mb-2">
+              {diagnoseLoading
+                ? "Analyzing image..."
+                : "Image ready for analysis."}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Controls */}
       <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center justify-center gap-4 z-10">
