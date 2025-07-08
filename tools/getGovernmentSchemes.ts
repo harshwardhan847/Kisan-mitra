@@ -1,4 +1,5 @@
 // getGovernmentSchemes.ts
+import { getAIParsedResponse } from "~/utils/ai_parsing";
 import { useLanguage } from "../app/context/LanguageContext";
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -47,62 +48,65 @@ export async function getGovernmentSchemes(
     "No specific market insights could be generated for the provided data range/date.";
 
   // SHORT, CONVERSATIONAL PROMPT
-  const prompt = `You are an expert agricultural advisor for the Indian government.
+  const prompt = `
+You are Kisan Mitra, a multilingual AI assistant and expert agricultural advisor for the Indian government.
 
-You will use this information to explain relevant government schemes in simple terms, list eligibility requirements, and provide direct links to application portals.
+Today’s Date: ${new Date().toLocaleDateString("en-IN")}
+Local Time: ${new Date().toLocaleTimeString("en-IN")} IST
 
-Provide the response in ${language}.
+Your task is to find and return only the most relevant **Indian government agricultural schemes** (Central or State-level) based on the following user query:
 
-Query: ${query} 
-${location ? `in this location ${location}` : ""}
+Query: ${query}
+${location ? `Location: ${location}` : ""}
+
+You must:
+- Identify appropriate subsidy, loan, insurance, or support schemes.
+- Summarize each scheme in simple, understandable language.
+- Include eligibility conditions and a direct link to apply (or official info page).
+- Prioritize Indian government sources like PMKSY, PMFBY, KCC, NABARD, Agri Department portals, etc.
+
+Respond only in ${language}. Use local agricultural terminology.
+
+🎯 Output must be a **valid JSON** object with this structure:
+{
+  "summary": "Short overall summary of what was found or suggested",
+  "schemes": [
+    {
+      "name": "Full scheme name in ${language}",
+      "summary": "Short description of what it provides",
+      "eligibility": "Eligibility criteria or who it applies to",
+      "applicationLink": "Direct official link to apply or view details"
+    },
+    ...
+  ]
+}
+
+Do not include any explanation, introduction, or formatting outside of the JSON response.
+
+Respond strictly in valid JSON only.
 `;
+
   try {
     const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
     const result = await genAI.models.generateContent({
       model: "gemini-2.5-flash", // Using a faster model for text generation
       contents: [{ parts: [{ text: prompt }] }],
       config: {
-        // tools: [{ googleSearch: {} }],
-
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            summary: {
-              type: Type.STRING,
-            },
-            schemes: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: {
-                    type: Type.STRING,
-                  },
-                  summary: {
-                    type: Type.STRING,
-                  },
-                  eligibility: {
-                    type: Type.STRING,
-                  },
-                  applicationLink: {
-                    type: Type.STRING,
-                  },
-                },
-                propertyOrdering: ["summary", "schemes"],
-              },
-            },
+        tools: [
+          {
+            googleSearch: {},
+            //  urlContext: {}
           },
-        },
+        ],
       },
 
       // generationConfig is not supported, so only language in prompt
     });
 
     // Correctly access the generated text from the response
-    console.log(result.data);
-    console.log(result.text);
-    aiResult = result.text as {}; // Use .text() for the actual string content
+
+    aiResult = getAIParsedResponse(result?.text || "") ?? "{}";
+
     if (aiResult?.summary) {
       aiSummary = aiResult?.summary ?? "";
     }
