@@ -42,7 +42,7 @@ export async function diagnoseCropDisease(
   } catch {}
 
   try {
-    const apiKey = "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo";
+    const apiKey = import.meta.env.VITE_GENERATIVE_API_KEY;
     const client = new GoogleGenAI({ apiKey });
     const imageBase64 = image.replace(
       /^data:image\/(png|jpeg|jpg);base64,/,

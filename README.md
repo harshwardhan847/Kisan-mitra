@@ -85,3 +85,8 @@ This template comes with [Tailwind CSS](https://tailwindcss.com/) already config
 ---
 
 Built with ❤️ using React Router.
+
+
+language to current language in every tool
+government scheme tool
+disease tool context to live api

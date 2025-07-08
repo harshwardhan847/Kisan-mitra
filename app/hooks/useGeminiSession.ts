@@ -10,7 +10,6 @@ import {
   formatDateToDDMMYYYY,
   getMarketData,
   marketDataFunctionDeclaration,
-  type MarketDataResult,
 } from "tools/getMarketData";
 import { useLanguage } from "../context/LanguageContext";
 import {

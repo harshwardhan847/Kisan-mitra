@@ -57,14 +57,11 @@ export async function getMarketData(
     languageCode = useLanguage().currentLanguage;
   } catch {}
 
-  const MANDI_API_KEY =
-    "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"; // Your API key
-  const HISTORICAL_BASE_URL =
-    "https://api.data.gov.in/resource/35985678-0d79-46b4-9ed6-6f13308a1d24";
-  const TODAY_BASE_URL =
-    "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
+  const MANDI_API_KEY = import.meta.env.VITE_MANDI_API_KEY;
+  const HISTORICAL_BASE_URL = import.meta.env.VITE_HISTORICAL_MANDI_API_URL;
+  const TODAY_BASE_URL = import.meta.env.VITE_TODAY_MANDI_API_URL;
 
-  const geminiApiKey: string = "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo";
+  const geminiApiKey: string = import.meta.env.VITE_GENERATIVE_API_KEY;
 
   console.log("Called: MarketDataTool");
 
@@ -352,7 +349,7 @@ $${
 export const marketDataFunctionDeclaration = {
   name: "get_market_data",
   description:
-    "Retrieves agricultural commodity price data from Indian Mandi markets. Can fetch data for a specific date or a range of dates to identify trends. Defaults to today's date if no date is specified. Provide `startDate` and `endDate` for a range, or `arrivalDate` for a single day.",
+    "Retrieves agricultural commodity price data from Indian Mandi markets. Can fetch data for a specific date or a range of dates to identify trends. Defaults to today's date if no date is specified. Provide `startDate` and `endDate` for a range, or `arrivalDate` for a single day. All the parameters must be in english",
   parameters: {
     type: Type.OBJECT,
     properties: {

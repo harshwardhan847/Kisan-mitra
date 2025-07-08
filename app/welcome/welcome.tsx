@@ -102,7 +102,7 @@ const LiveAudio: React.FC = () => {
     resetSession,
     searchResults: geminiSearchResults, // Rename to avoid conflict with local state
   } = useGeminiSession({
-    apiKey: "AIzaSyCC-OMVsUmkpw8qa6WaWlnVVKzwn7HLmdo", // Replace with your actual API key
+    apiKey: import.meta.env.VITE_GEMINI_API_KEY || "", // Replace with your actual API key
     outputAudioContext,
     outputNode,
     nextStartTimeRef: nextStartTime,
