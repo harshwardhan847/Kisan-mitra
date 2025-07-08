@@ -463,9 +463,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
         return marketResults.map((res, j) => {
           const key = `mkt-${i}-${j}`;
           const records = res.records || [];
-          const prices = records
-            .map((r) => Number.parseFloat(r.Modal_Price))
-            .filter((n) => !isNaN(n));
+          const prices =
+            records.length > 1
+              ? records
+                  .map((r) => Number.parseFloat(r.Modal_Price))
+                  .filter((n) => !isNaN(n))
+              : records.length === 1
+              ? [
+                  Number.parseFloat(records[0].Max_Price),
+                  Number.parseFloat(records[0].Min_Price),
+                  Number.parseFloat(records[0].Modal_Price),
+                ]
+              : [];
           const min = prices.length ? Math.min(...prices) : "-";
           const max = prices.length ? Math.max(...prices) : "-";
           const avg = prices.length
