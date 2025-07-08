@@ -79,7 +79,8 @@ export const useGeminiSession = ({
     }
 
     clientRef.current = new GoogleGenAI({ apiKey });
-    const model = "gemini-live-2.5-flash-preview";
+    // const model = "gemini-live-2.5-flash-preview";
+    const model = "gemini-2.5-flash-preview-native-audio-dialog";
 
     const systemInstructions = `You are **Kisan Mitra**, a multilingual AI agent built to assist Indian farmers across all states in their native or preferred languages.
     currently talk me with ${currentLanguage} language
@@ -178,7 +179,9 @@ no matter what the previous language of conversation was now you have to talk in
                           fc.args.market,
                           fc.args.arrivalDate,
                           fc.args.startDate,
-                          fc.args.endDate
+                          fc.args.endDate,
+                          [],
+                          currentLanguage
                         );
                         onMarketDataReceived(toolResult);
                       } else {
@@ -206,7 +209,9 @@ no matter what the previous language of conversation was now you have to talk in
                           regions,
                           fc.args.arrivalDate,
                           fc.args.startDate,
-                          fc.args.endDate
+                          fc.args.endDate,
+                          [],
+                          currentLanguage
                         );
                         onMarketDataReceived(toolResult);
                       } else {

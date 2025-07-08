@@ -13,7 +13,8 @@ export async function compareStateMarketData(
   arrivalDate?: string,
   startDate?: string,
   endDate?: string,
-  previousChats?: MarketDataResult[] // NEW: pass previous chat data for context
+  previousChats?: MarketDataResult[], // NEW: pass previous chat data for context
+  languageCode: string = "hi-IN"
 ): Promise<{
   records: MandiRecord[];
   summary: string;
@@ -21,13 +22,6 @@ export async function compareStateMarketData(
   chartType?: string;
   chartData?: any;
 }> {
-  // Use language from context
-  let languageCode = "hi-IN";
-  try {
-    // Only works in React context
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    languageCode = useLanguage().currentLanguage;
-  } catch {}
   const MANDI_API_KEY = import.meta.env.VITE_MANDI_API_KEY;
   const HISTORICAL_URL = import.meta.env.VITE_HISTORICAL_MANDI_API_URL;
   const TODAY_URL = import.meta.env.VITE_TODAY_MANDI_API_URL;

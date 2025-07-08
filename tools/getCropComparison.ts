@@ -15,15 +15,9 @@ export async function getCropComparison(
   district?: string,
   market?: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  languageCode: string = "hi-IN"
 ): Promise<CropComparisonResult> {
-  // Use language from context
-  let languageCode = "hi-IN";
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    languageCode = useLanguage().currentLanguage;
-  } catch {}
-
   // Simulate API fetch for each crop (replace with real API logic)
   const cropsData = await Promise.all(
     cropNames.map(async (crop) => {

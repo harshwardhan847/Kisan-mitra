@@ -47,15 +47,10 @@ export async function getMarketData(
   arrivalDate?: string, // For single-day query (DD/MM/YYYY)
   startDate?: string, // For range query start (DD/MM/YYYY)
   endDate?: string, // For range query end (DD/MM/YYYY)
-  previousChats?: MarketDataResult[] // NEW: pass previous chat data for context
+  previousChats?: MarketDataResult[], // NEW: pass previous chat data for context
+  languageCode: string = "hi-IN"
 ): Promise<MarketDataResult> {
   // Use language from context
-  let languageCode = "hi-IN";
-  try {
-    // Only works in React context
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    languageCode = useLanguage().currentLanguage;
-  } catch {}
 
   const MANDI_API_KEY = import.meta.env.VITE_MANDI_API_KEY;
   const HISTORICAL_BASE_URL = import.meta.env.VITE_HISTORICAL_MANDI_API_URL;
@@ -302,15 +297,16 @@ export async function getMarketData(
         .join("\n\n");
     }
     // SHORT, CONVERSATIONAL PROMPT
-    const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
+    const prompt = `You are an expert agricultural market analyst..
 $${
       chatContext ? chatContext + "\n\n" : ""
-    }Here is mandi price data for ${commodityName} (${displayDateRange}):\n${dataString}\n\nReply with a short, direct, conversational summary (max 3 sentences). Focus on the main trend, a tip for farmers, and a tip for buyers. If data is too little, say so. Use markdown, but keep it concise and to the point like a real chat.`;
+    }Here is mandi price data for ${commodityName} (${displayDateRange}):\n${dataString}\n\nReply with a short, direct, conversational summary (max 3 sentences). Focus on the main trend, a tip for farmers, and a tip for buyers. If data is too little, say so. Use markdown, but keep it concise and to the point like a real chat.  Response must be in this language: ${languageCode}`;
     try {
       const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
       const result = await genAI.models.generateContent({
         model: "gemini-2.5-flash", // Using a faster model for text generation
         contents: [{ parts: [{ text: prompt }] }],
+
         // generationConfig is not supported, so only language in prompt
       });
 

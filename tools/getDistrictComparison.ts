@@ -14,14 +14,9 @@ export async function getDistrictComparison(
   districts: string[],
   state?: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  languageCode: string = "hi-IN"
 ): Promise<DistrictComparisonResult> {
-  let languageCode = "hi-IN";
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    languageCode = useLanguage().currentLanguage;
-  } catch {}
-
   // Simulate API fetch for each district (replace with real API logic)
   const districtsData = await Promise.all(
     districts.map(async (district) => {

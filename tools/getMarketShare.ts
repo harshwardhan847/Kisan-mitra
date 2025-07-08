@@ -11,14 +11,9 @@ export interface MarketShareResult {
 export async function getMarketShare(
   commodityName: string,
   state: string,
-  date: string
+  date: string,
+  languageCode: string = "hi-IN"
 ): Promise<MarketShareResult> {
-  let languageCode = "hi-IN";
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    languageCode = useLanguage().currentLanguage;
-  } catch {}
-
   // Simulate API fetch for market share (replace with real API logic)
   const markets = ["A", "B", "C", "D"];
   const chartData = markets.map((market) => ({

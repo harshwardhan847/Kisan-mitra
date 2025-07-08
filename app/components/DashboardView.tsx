@@ -275,15 +275,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
 
   return (
     <div className="w-full flex flex-col items-center gap-8 max-h-[80vh] overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-      {results.map((result, i) => {
+      {results?.reverse()?.map((result, i) => {
         if (!result) return <React.Fragment key={i} />;
 
         // Government Schemes
-        if (
-          "schemes" in result &&
-          "summary" in result &&
-          "language" in result
-        ) {
+        if ("schemes" in result && "summary" in result) {
           const schemesResult = result as GovernmentSchemesResult;
           return (
             <div
@@ -325,12 +321,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                         <div className="inline-flex items-center space-x-2 px-3 py-1 bg-green-500/20 rounded-full">
                           <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                           <span className="text-xs text-green-300 font-medium">
-                            {s.category}
+                            {s.eligibility}
                           </span>
                         </div>
                       </div>
                       <a
-                        href={s.link}
+                        href={s.applicationLink}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-500/25"

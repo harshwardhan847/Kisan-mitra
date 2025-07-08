@@ -1,6 +1,6 @@
 // getGovernmentSchemes.ts
 import { useLanguage } from "../app/context/LanguageContext";
-import { Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 export const getGovernmentSchemesFunctionDeclaration = {
   name: "get_government_schemes",
@@ -25,58 +25,102 @@ export const getGovernmentSchemesFunctionDeclaration = {
 export interface GovernmentScheme {
   name: string; // Local + English
   summary: string;
-  category: string;
-  link: string;
+  eligibility: string;
+  applicationLink: string;
 }
 
 export interface GovernmentSchemesResult {
   summary: string;
   schemes: GovernmentScheme[];
-  language: string;
 }
 
 // Stub: Replace with real data source or API integration
 export async function getGovernmentSchemes(
   query: string,
   location: string,
-  language?: string
+  language: string = "hi-IN"
 ): Promise<GovernmentSchemesResult> {
-  // Use language from context if not provided
-  let lang = language;
+  const geminiApiKey: string = import.meta.env.VITE_GENERATIVE_API_KEY;
+  // --- Gemini AI Analysis to generate summary/trends ---
+  let aiResult: { summary?: string; schemes?: any[] } = {};
+  let aiSummary =
+    "No specific market insights could be generated for the provided data range/date.";
+
+  // SHORT, CONVERSATIONAL PROMPT
+  const prompt = `You are an expert agricultural advisor for the Indian government.
+
+You will use this information to explain relevant government schemes in simple terms, list eligibility requirements, and provide direct links to application portals.
+
+Provide the response in ${language}.
+
+Query: ${query} 
+${location ? `in this location ${location}` : ""}
+`;
   try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    if (!lang) lang = useLanguage().currentLanguage;
-  } catch {}
-  // Example stubbed data
-  if (query.toLowerCase().includes("drip irrigation")) {
-    return {
-      summary:
-        lang === "hi"
-          ? "ड्रिप सिंचाई के लिए सब्सिडी योजनाएँ उपलब्ध हैं।"
-          : "Subsidy schemes for drip irrigation are available.",
-      schemes: [
-        {
-          name:
-            lang === "hi"
-              ? "प्रधानमंत्री कृषि सिंचाई योजना (PMKSY)"
-              : "Pradhan Mantri Krishi Sinchayee Yojana (PMKSY)",
-          summary:
-            lang === "hi"
-              ? "योग्यता: सभी किसान | लाभ: ड्रिप/स्प्रिंकलर पर सब्सिडी | श्रेणी: सब्सिडी"
-              : "Eligibility: All farmers | Benefit: Subsidy on drip/sprinkler | Category: Subsidy",
-          category: lang === "hi" ? "सब्सिडी" : "Subsidy",
-          link: "https://pmksy.gov.in/",
+    const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.5-flash", // Using a faster model for text generation
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        // tools: [{ googleSearch: {} }],
+
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            summary: {
+              type: Type.STRING,
+            },
+            schemes: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: {
+                    type: Type.STRING,
+                  },
+                  summary: {
+                    type: Type.STRING,
+                  },
+                  eligibility: {
+                    type: Type.STRING,
+                  },
+                  applicationLink: {
+                    type: Type.STRING,
+                  },
+                },
+                propertyOrdering: ["summary", "schemes"],
+              },
+            },
+          },
         },
-      ],
-      language: lang || "en",
-    };
+      },
+
+      // generationConfig is not supported, so only language in prompt
+    });
+
+    // Correctly access the generated text from the response
+    console.log(result.data);
+    console.log(result.text);
+    aiResult = result.text as {}; // Use .text() for the actual string content
+    if (aiResult?.summary) {
+      aiSummary = aiResult?.summary ?? "";
+    }
+
+    if (!aiSummary.trim()) {
+      aiSummary =
+        "The AI could not generate specific market insights based on the provided data.";
+    }
+    console.log("Generated AI Summary (Markdown):", aiSummary);
+  } catch (geminiError) {
+    console.error("Error generating insights with Gemini:", geminiError);
+    aiSummary = `Error analyzing data with AI: Failed to connect to AI service or generate content. Details: ${
+      geminiError instanceof Error ? geminiError.message : String(geminiError)
+    }`;
   }
+
   return {
-    summary:
-      lang === "hi"
-        ? "क्षमा करें, कोई उपयुक्त सरकारी योजना नहीं मिली। कृपया नजदीकी कृषि विज्ञान केंद्र (KVK) या CSC से संपर्क करें।"
-        : "Sorry, no relevant government scheme found. Please contact your nearest Krishi Vigyan Kendra (KVK) or CSC for help.",
-    schemes: [],
-    language: lang || "en",
+    summary: aiSummary,
+    schemes: aiResult?.schemes ?? [],
   };
 }

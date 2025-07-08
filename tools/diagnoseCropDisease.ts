@@ -33,7 +33,8 @@ export interface CropDiseaseDiagnosis {
 // Pure tool function: expects image as parameter, returns diagnosis
 export async function diagnoseCropDisease(
   image: string,
-  language?: string
+  language?: string,
+  languageCode: string = "hi-IN"
 ): Promise<CropDiseaseDiagnosis> {
   let lang = language;
   try {
