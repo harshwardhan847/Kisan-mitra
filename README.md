@@ -1,92 +1,71 @@
-# Welcome to React Router!
+# 🌾 Project Kisan Mitra — AI Agent for Indian Farmers
 
-A modern, production-ready template for building full-stack React applications using React Router.
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
-
-## Features
-
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
-
-## Getting Started
-
-### Installation
-
-Install the dependencies:
-
-```bash
-npm install
-```
-
-### Development
-
-Start the development server with HMR:
-
-```bash
-npm run dev
-```
-
-Your application will be available at `http://localhost:5173`.
-
-## Building for Production
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-## Deployment
-
-### Docker Deployment
-
-To build and run using Docker:
-
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+![Banner](https://lh3.google.com/u/0/d/1879t7jd9va_1goNjOsi4juVkI9Rg8ct3=w2880-h1720-iv1?auditContext=forDisplay)
 
 ---
 
-Built with ❤️ using React Router.
+## 👥 Team Details
 
+- **Team Name:** Project Kisan
+- **Team Lead:** Harsh
+- **Problem Statement:**  
+  > Providing farmers with expert help on demand, especially for crop disease diagnosis, market trends, and government schemes — all in native languages.
 
-language to current language in every tool
-government scheme tool
-disease tool context to live api
+---
+
+## 💡 Brief About the Idea
+
+Kisan Mitra is a multilingual, multimodal AI agent built with Google Vertex AI and Gemini. It helps farmers:
+
+- Diagnose plant diseases from images or voice
+- Track mandi prices and get sell recommendations
+- Discover and apply for government schemes
+- Get regional weather, soil, and agri news updates
+
+All responses are in the **farmer’s native language**, via voice or text.
+
+---
+
+## 🔍 Opportunities & Differentiation
+
+### 🚀 How Is It Different?
+- Most platforms only show raw data.  
+  ✅ We provide **actionable summaries with charts and voice**  
+  ✅ Multilingual voice-first interaction  
+  ✅ Context awareness between tools
+
+### 🧠 Why It Solves the Problem
+- Unified view of agriculture decisions — disease, pricing, government aid — through a single, easy-to-use agent.
+
+### ⭐ Unique Selling Proposition
+- Powered by Google Gemini  
+- Live voice + image analysis + regional intelligence  
+- Seamless data-to-decision pipeline
+
+---
+
+## 🧰 Features Offered
+
+| Feature | Description |
+|--------|-------------|
+| 🧠 Voice Chat | Gemini-powered live chat in regional language |
+| 🌾 Disease Diagnosis | Image/audio based plant pathology tool |
+| 📈 Mandi Prices | Market data with insights and trends |
+| 🔄 Compare Markets | District/state comparison with graphs |
+| 📅 Sowing/Harvest Guide | Calendar aligned with weather + crop type |
+| 💰 Government Schemes | Summarized subsidies and links |
+| 🧪 Soil Quality (Planned) | pH and nutrient analysis |
+| 📰 Agri News | Region-specific alerts and subsidies |
+
+---
+
+## 🔁 Process Flow (Use Case)
+
+```text
+User Uploads Crop Image + Speaks in Native Language
+↓
+→ Diagnose Crop Disease (Image + Gemini)
+→ Get Market Prices (API + Chart)
+→ Show Government Schemes (RAG + Gemini Summary)
+↓
+Output → Markdown + Charts + Audio Response
