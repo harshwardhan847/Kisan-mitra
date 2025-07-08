@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Sparkles,
 } from "lucide-react";
+import type { PreviousChats } from "~/types/tool_types";
 
 interface SearchResult {
   uri: string;
@@ -38,7 +39,7 @@ const LiveAudio: React.FC = () => {
   }>({ active: false });
   const [livePrompt, setLivePrompt] = useState<string>("");
   const { currentLanguage, setCurrentLanguage } = useLanguage();
-  const [dashboardData, setDashboardData] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<PreviousChats>([]);
   const [dashboardError, setDashboardError] = useState<string>("");
   const [diagnoseLoading, setDiagnoseLoading] = useState(false);
   const [diagnosePreview, setDiagnosePreview] = useState<string | null>(null);
@@ -97,6 +98,7 @@ const LiveAudio: React.FC = () => {
     },
     []
   );
+  const getPreviousChats = () => dashboardData.slice(-MAX_CONTEXT_CHATS);
 
   const {
     session,
@@ -111,6 +113,7 @@ const LiveAudio: React.FC = () => {
     updateError,
     setSearchResults: setSearchResults,
     onMarketDataReceived: handleMarketDataReceived,
+    previousChats: getPreviousChats(),
     setLoading,
     onRequestImageForDiagnosis: handleAgentDiagnoseRequest,
   });
@@ -122,9 +125,6 @@ const LiveAudio: React.FC = () => {
     updateStatus,
     updateError,
   });
-
-  const getPreviousChats = () =>
-    dashboardData.filter((d) => d && d.summary).slice(-MAX_CONTEXT_CHATS);
 
   const handleClearHistory = () => {
     setDashboardData([]);
@@ -138,15 +138,19 @@ const LiveAudio: React.FC = () => {
   };
 
   const handleImageCapture = async (image: string) => {
+    if (cameraOpen === false) return;
     setCameraOpen(false);
     setDiagnoseLoading(true);
     setDiagnosePreview(image);
     try {
       if ((window as any).__agentDiagnosisCallback) {
         (window as any).__agentDiagnosisCallback(image);
-        (window as any).__agentDiagnosisCallback = undefined;
       } else {
-        const result = await diagnoseCropDisease(image, currentLanguage);
+        const result = await diagnoseCropDisease(
+          image,
+          currentLanguage,
+          getPreviousChats()
+        );
         setDashboardData((prev) => [...prev, result]);
       }
     } catch {
@@ -201,7 +205,7 @@ const LiveAudio: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                AI Assistant
+                Kisan Mitra
               </h1>
               <p className="text-sm text-slate-400">
                 Intelligent Voice Interface

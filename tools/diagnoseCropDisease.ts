@@ -2,6 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { useLanguage } from "../app/context/LanguageContext";
 import { Type } from "@google/genai";
+import type { PreviousChats } from "~/types/tool_types";
 
 const GEMINI_PROMPT = `You are a multilingual crop disease diagnosis and treatment assistant.\n\nGiven an image of a diseased plant, return the following:\n1. Disease name (common and scientific)\n2. Cause: fungal, bacterial, pest, deficiency, etc.\n3. Immediate next step for the farmer\n4. Organic remedies (e.g., neem spray)\n5. Inorganic solutions (e.g., safe fungicide/pesticide)\n\n🗣 Respond in the user’s chosen Indian language. Use agricultural examples from India (e.g., \"red rot in sugarcane\").\n\n📋 Output Format:\n- Disease name\n- Cause and spread\n- Step-by-step treatment (organic first, then inorganic)\n- Warnings (e.g., wear gloves when spraying)\n\nAlways prioritize **safety** and encourage farmers to consult nearby agricultural officers if needed.`;
 
@@ -34,7 +35,7 @@ export interface CropDiseaseDiagnosis {
 export async function diagnoseCropDisease(
   image: string,
   language?: string,
-  languageCode: string = "hi-IN"
+  previousChats?: PreviousChats
 ): Promise<CropDiseaseDiagnosis> {
   let lang = language;
   try {
@@ -55,8 +56,16 @@ export async function diagnoseCropDisease(
         mimeType: "image/png",
       },
     };
+    const chatContext =
+      previousChats && previousChats.length > 0
+        ? previousChats
+            .map((c, i) => `Previous Query #${i + 1}:\n${c?.toString()}`)
+            .join("\n\n")
+        : "";
+
     const promptPart = {
       text:
+        (chatContext ? chatContext + "\n\n" : "") +
         GEMINI_PROMPT +
         `\nLanguage: ${lang}\n\nReturn ONLY a valid JSON object with the following fields: diseaseName, cause, treatment (array of steps), warnings (array), language. Do not include any explanation or extra text.`,
     };

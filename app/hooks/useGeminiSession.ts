@@ -26,6 +26,7 @@ import {
   type CropDiseaseDiagnosis,
 } from "tools/diagnoseCropDisease";
 import type { ToolResponse } from "~/components/DashboardView";
+import type { PreviousChats } from "~/types/tool_types";
 
 // Define the interface for search results, moved here as it's directly used.
 interface SearchResult {
@@ -42,6 +43,7 @@ interface UseGeminiSessionProps {
   updateError: (msg: string) => void;
   setSearchResults: (results: SearchResult[]) => void;
   onMarketDataReceived: (data: ToolResponse) => void;
+  previousChats: PreviousChats;
   setLoading?: (loading: { active: boolean; toolName?: string }) => void;
   onRequestImageForDiagnosis?: (cb: (image: string) => void) => void; // <-- AGENT-DRIVEN
 }
@@ -63,6 +65,7 @@ export const useGeminiSession = ({
   onMarketDataReceived,
   setLoading,
   onRequestImageForDiagnosis, // <-- AGENT-DRIVEN
+  previousChats,
 }: UseGeminiSessionProps): GeminiSessionHook => {
   const { currentLanguage } = useLanguage();
   const clientRef = useRef<GoogleGenAI | null>(null);
@@ -114,7 +117,7 @@ You can use multiple tool at once or get response from one tool if required by a
 Don't wait for user confirmation for calling Tool. Call tool automatically without asking for confirmation.
 If user Ask's to know where he should sell it's crop. Then deeply analyze the market data of last 10 days (if user don't specify) of his district and nearby districts. You can search for nearby States as well for more reliable prediction and suggestions.
 Always give a final action for the Farmer. Like a Fixed State or district to sell the crop. Don't say like this is best but check once.
-
+If there is a problem with the farmer's image immediately call the diagnose_crop_disease tool without needed any conversation and say farmer to upload an image on the opened modal.
 🔁 Interaction Guidelines:
 - Today's date is :- ${formatDateToDDMMYYYY(new Date())}
 - Resolve time-relative phrases using today's date (e.g., “yesterday” = {{current_date - 1 day}})
@@ -184,7 +187,7 @@ no matter what the previous language of conversation was now you have to talk in
                           fc.args.arrivalDate,
                           fc.args.startDate,
                           fc.args.endDate,
-                          [],
+                          previousChats,
                           currentLanguage
                         );
                         onMarketDataReceived(toolResult);
@@ -214,7 +217,7 @@ no matter what the previous language of conversation was now you have to talk in
                           fc.args.arrivalDate,
                           fc.args.startDate,
                           fc.args.endDate,
-                          [],
+                          previousChats,
                           currentLanguage
                         );
                         onMarketDataReceived(toolResult);
@@ -235,7 +238,8 @@ no matter what the previous language of conversation was now you have to talk in
                         toolResult = await getGovernmentSchemes(
                           fc.args.query,
                           fc.args.location,
-                          currentLanguage
+                          currentLanguage,
+                          previousChats
                         );
                       } else {
                         toolResult = {
@@ -250,10 +254,12 @@ no matter what the previous language of conversation was now you have to talk in
                         // Defer execution to UI for image capture
                         await new Promise<void>((resolve) => {
                           onRequestImageForDiagnosis(async (image: string) => {
+                            if (!image) return;
                             try {
                               const toolResult = await diagnoseCropDisease(
                                 image,
-                                currentLanguage
+                                currentLanguage,
+                                previousChats
                               );
                               onMarketDataReceived(toolResult);
                               functionResponses.push({
@@ -281,9 +287,11 @@ no matter what the previous language of conversation was now you have to talk in
                         });
                         break; // move to next tool call
                       } else if (fc.args && typeof fc.args.image === "string") {
+                        if (!fc.args.image) return;
                         const toolResult = await diagnoseCropDisease(
                           fc.args.image,
-                          currentLanguage
+                          currentLanguage,
+                          previousChats
                         );
                         onMarketDataReceived(toolResult);
                         functionResponses.push({
@@ -335,26 +343,6 @@ no matter what the previous language of conversation was now you have to talk in
 
             // --- AI IMAGE REQUEST DETECTION LOGIC ---
             // If the AI is asking for an image for diagnosis, trigger the modal immediately
-            if (onRequestImageForDiagnosis) {
-              const text =
-                message.serverContent?.modelTurn?.parts?.[0]?.text || "";
-              // Regex/keywords for image request (customize as needed)
-              const imageRequestRegex =
-                /((provide|upload|send|attach|share) (an? |the )?(image|photo|picture|snapshot|photograph))/i;
-              // Use a ref to avoid repeated triggers for the same prompt
-              if (
-                !sessionRef.current?._imageRequestPending &&
-                imageRequestRegex.test(text)
-              ) {
-                sessionRef.current._imageRequestPending = true;
-                onRequestImageForDiagnosis(async (image: string) => {
-                  // After image is provided, clear the flag
-                  sessionRef.current._imageRequestPending = false;
-                  // Optionally, you can call the tool here if you want to auto-diagnose
-                  await diagnoseCropDisease(image, currentLanguage);
-                });
-              }
-            }
 
             // Handle audio playback
             const audio = modelTurn?.parts[0]?.inlineData;

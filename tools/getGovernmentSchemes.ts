@@ -2,6 +2,8 @@
 import { getAIParsedResponse } from "~/utils/ai_parsing";
 import { useLanguage } from "../app/context/LanguageContext";
 import { GoogleGenAI, Type } from "@google/genai";
+import type { MarketDataResult } from "./getMarketData";
+import type { PreviousChats } from "~/types/tool_types";
 
 export const getGovernmentSchemesFunctionDeclaration = {
   name: "get_government_schemes",
@@ -39,7 +41,8 @@ export interface GovernmentSchemesResult {
 export async function getGovernmentSchemes(
   query: string,
   location: string,
-  language: string = "hi-IN"
+  language: string = "hi-IN",
+  previousChats?: PreviousChats // NEW: pass previous chat data for context
 ): Promise<GovernmentSchemesResult> {
   const geminiApiKey: string = import.meta.env.VITE_GENERATIVE_API_KEY;
   // --- Gemini AI Analysis to generate summary/trends ---
@@ -47,8 +50,14 @@ export async function getGovernmentSchemes(
   let aiSummary =
     "No specific market insights could be generated for the provided data range/date.";
 
+  const chatContext =
+    previousChats && previousChats.length > 0
+      ? previousChats
+          .map((c, i) => `Previous Query #${i + 1}:\n${c?.toString()}`)
+          .join("\n\n")
+      : "";
   // SHORT, CONVERSATIONAL PROMPT
-  const prompt = `
+  const prompt = `${chatContext ? chatContext + "\n\n" : ""}
 You are Kisan Mitra, a multilingual AI assistant and expert agricultural advisor for the Indian government.
 
 Today’s Date: ${new Date().toLocaleDateString("en-IN")}

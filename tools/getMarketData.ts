@@ -1,6 +1,7 @@
 // tools/getMarketData.ts
 import { Type, GoogleGenAI } from "@google/genai"; // Corrected import
 import { useLanguage } from "../app/context/LanguageContext";
+import type { PreviousChats } from "~/types/tool_types";
 
 // Helper to format a Date object into DD/MM/YYYY
 export function formatDateToDDMMYYYY(date: Date): string {
@@ -47,7 +48,7 @@ export async function getMarketData(
   arrivalDate?: string, // For single-day query (DD/MM/YYYY)
   startDate?: string, // For range query start (DD/MM/YYYY)
   endDate?: string, // For range query end (DD/MM/YYYY)
-  previousChats?: MarketDataResult[], // NEW: pass previous chat data for context
+  previousChats?: PreviousChats, // NEW: pass previous chat data for context
   languageCode: string = "hi-IN"
 ): Promise<MarketDataResult> {
   // Use language from context
@@ -290,12 +291,12 @@ export async function getMarketData(
     // Stringify data for the prompt
     const dataString = JSON.stringify(dataForGemini, null, 2);
 
-    let chatContext = "";
-    if (previousChats && previousChats.length > 0) {
-      chatContext = previousChats
-        .map((c, i) => `Previous Query #${i + 1}:\n${c.summary}`)
-        .join("\n\n");
-    }
+    const chatContext =
+      previousChats && previousChats.length > 0
+        ? previousChats
+            .map((c, i) => `Previous Query #${i + 1}:\n${c?.toString()}`)
+            .join("\n\n")
+        : "";
     // SHORT, CONVERSATIONAL PROMPT
     const prompt = `You are an expert agricultural market analyst..
 $${

@@ -5,23 +5,24 @@ import {
   type MandiRecord,
   type MarketDataResult,
 } from "./getMarketData";
-import { useLanguage } from "../app/context/LanguageContext";
+import type { PreviousChats } from "~/types/tool_types";
 
+export type StateComparisonData = {
+  records: MandiRecord[];
+  summary: string;
+  error?: string;
+  chartType?: string;
+  chartData?: any;
+};
 export async function compareStateMarketData(
   commodityName: string,
   states: string[],
   arrivalDate?: string,
   startDate?: string,
   endDate?: string,
-  previousChats?: MarketDataResult[], // NEW: pass previous chat data for context
+  previousChats?: PreviousChats, // NEW: pass previous chat data for context
   languageCode: string = "hi-IN"
-): Promise<{
-  records: MandiRecord[];
-  summary: string;
-  error?: string;
-  chartType?: string;
-  chartData?: any;
-}> {
+): Promise<StateComparisonData> {
   const MANDI_API_KEY = import.meta.env.VITE_MANDI_API_KEY;
   const HISTORICAL_URL = import.meta.env.VITE_HISTORICAL_MANDI_API_URL;
   const TODAY_URL = import.meta.env.VITE_TODAY_MANDI_API_URL;
@@ -158,12 +159,12 @@ export async function compareStateMarketData(
       null,
       2
     );
-    let chatContext = "";
-    if (previousChats && previousChats.length > 0) {
-      chatContext = previousChats
-        .map((c, i) => `Previous Query #${i + 1}:\n${c.summary}`)
-        .join("\n\n");
-    }
+    const chatContext =
+      previousChats && previousChats.length > 0
+        ? previousChats
+            .map((c, i) => `Previous Query #${i + 1}:\n${c?.toString()}`)
+            .join("\n\n")
+        : "";
     // SHORT, CONVERSATIONAL PROMPT
     const prompt = `You are an expert agricultural market analyst. Respond in this language: ${languageCode}.
 $${
