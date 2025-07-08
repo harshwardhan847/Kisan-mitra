@@ -1,37 +1,45 @@
-import React, { useState, useCallback } from "react";
+import type React from "react";
+import { useState, useCallback } from "react";
 import { useAudioContexts } from "~/hooks/useAudioContexts";
 import { useLanguage, LANGUAGE_OPTIONS } from "../context/LanguageContext";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
 import { useAudioRecording } from "~/hooks/useAudioRecording";
 import { diagnoseCropDisease } from "../../tools/diagnoseCropDisease";
 import CameraDiagnosisModal from "../components/CameraDiagnosisModal";
-
 import type { MarketDataResult } from "tools/getMarketData";
 import DashboardView, { type ToolResponse } from "../components/DashboardView";
-import { BiReset } from "react-icons/bi";
-import { TbTrash } from "react-icons/tb";
+import {
+  Mic,
+  MicOff,
+  Camera,
+  RotateCcw,
+  Trash2,
+  Globe,
+  Loader2,
+  ExternalLink,
+  Sparkles,
+} from "lucide-react";
 
 interface SearchResult {
   uri: string;
   title: string;
 }
 
-const MAX_CONTEXT_CHATS = 10; // Limit Gemini context to last 5 chats
+const MAX_CONTEXT_CHATS = 10;
 
 const LiveAudio: React.FC = () => {
   // State for UI display
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]); // State to display search results
-
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState<{
     active: boolean;
     toolName?: string;
   }>({ active: false });
   const [livePrompt, setLivePrompt] = useState<string>("");
   const { currentLanguage, setCurrentLanguage } = useLanguage();
-  const [dashboardData, setDashboardData] = useState<any[]>([]); // chat history
-  const [dashboardError, setDashboardError] = useState<string>(""); // For Gemini/context errors
+  const [dashboardData, setDashboardData] = useState<any[]>([]);
+  const [dashboardError, setDashboardError] = useState<string>("");
   const [diagnoseLoading, setDiagnoseLoading] = useState(false);
   const [diagnosePreview, setDiagnosePreview] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -41,10 +49,7 @@ const LiveAudio: React.FC = () => {
   const updateStatus = useCallback((msg: string) => setStatus(msg), []);
   const updateError = useCallback((msg: string) => setError(msg), []);
 
-  // Listen for AI or tool result updates and show as live prompter
-  // We'll update setLivePrompt in the onMarketDataReceived and in GeminiSession's onmessage
   const handleMarketDataReceived = useCallback((data: ToolResponse) => {
-    // If it's a compare_state_market_data result (object of MarketDataResult), join summaries
     if (
       data &&
       typeof data === "object" &&
@@ -73,10 +78,9 @@ const LiveAudio: React.FC = () => {
     } else {
       setLivePrompt("");
     }
-    setDashboardData((prev) => [...prev, data]); // append new data to chat history
+    setDashboardData((prev) => [...prev, data]);
   }, []);
 
-  // Custom hook for AudioContexts and GainNodes
   const {
     inputAudioContext,
     outputAudioContext,
@@ -85,36 +89,32 @@ const LiveAudio: React.FC = () => {
     nextStartTime,
   } = useAudioContexts();
 
-  // Handler for agent-driven diagnosis (tool call)
   const handleAgentDiagnoseRequest = useCallback(
     (cb: (image: string) => void) => {
       setCameraOpen(true);
       setPendingAgentDiagnosis(true);
-      // Store callback to be called after image capture
       (window as any).__agentDiagnosisCallback = cb;
     },
     []
   );
 
-  // Custom hook for Gemini Session management
   const {
     session,
     resetSession,
-    searchResults: geminiSearchResults, // Rename to avoid conflict with local state
+    searchResults: geminiSearchResults,
   } = useGeminiSession({
-    apiKey: import.meta.env.VITE_GEMINI_API_KEY || "", // Replace with your actual API key
+    apiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
     outputAudioContext,
     outputNode,
     nextStartTimeRef: nextStartTime,
     updateStatus,
     updateError,
-    setSearchResults: setSearchResults, // Pass local state setter to update results from hook
+    setSearchResults: setSearchResults,
     onMarketDataReceived: handleMarketDataReceived,
-    setLoading, // Pass loading setter to hook
-    onRequestImageForDiagnosis: handleAgentDiagnoseRequest, // <-- AGENT-DRIVEN
+    setLoading,
+    onRequestImageForDiagnosis: handleAgentDiagnoseRequest,
   });
 
-  // Custom hook for Audio Recording
   const { isRecording, startRecording, stopRecording } = useAudioRecording({
     inputAudioContext,
     inputNode,
@@ -123,30 +123,25 @@ const LiveAudio: React.FC = () => {
     updateError,
   });
 
-  // When calling getMarketData or compareStateMarketData, pass previous chat data for context
   const getPreviousChats = () =>
-    dashboardData.filter((d) => d && d.summary).slice(-MAX_CONTEXT_CHATS); // Only last N
+    dashboardData.filter((d) => d && d.summary).slice(-MAX_CONTEXT_CHATS);
 
-  // Clear chat history handler
   const handleClearHistory = () => {
     setDashboardData([]);
     setDashboardError("");
     setLivePrompt("");
   };
 
-  // Handler for manual crop disease diagnosis (button click)
   const handleManualDiagnoseRequest = () => {
     setCameraOpen(true);
     setPendingAgentDiagnosis(false);
   };
 
-  // When image is captured from modal
   const handleImageCapture = async (image: string) => {
     setCameraOpen(false);
     setDiagnoseLoading(true);
     setDiagnosePreview(image);
     try {
-      // Always call the agent callback if it exists
       if ((window as any).__agentDiagnosisCallback) {
         (window as any).__agentDiagnosisCallback(image);
         (window as any).__agentDiagnosisCallback = undefined;
@@ -164,229 +159,277 @@ const LiveAudio: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+
       {/* Loading Overlay */}
       {loading.active && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-60">
-          <div className="flex flex-col items-center">
-            <svg
-              className="animate-spin h-10 w-10 text-blue-400 mb-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8z"
-              />
-            </svg>
-            <div className="text-lg font-semibold text-blue-200">
-              {loading.toolName
-                ? `Processing: ${loading.toolName}`
-                : "Processing..."}
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl p-8 border border-slate-700/50 shadow-2xl">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 text-cyan-400 animate-spin" />
+                <div className="absolute inset-0 h-12 w-12 border-2 border-cyan-400/20 rounded-full animate-ping"></div>
+              </div>
+              <div className="text-xl font-medium text-slate-200">
+                {loading.toolName
+                  ? `Processing: ${loading.toolName}`
+                  : "Processing..."}
+              </div>
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce delay-100"></div>
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce delay-200"></div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Language Selector */}
-      <div className="absolute top-5 right-5 z-20">
-        <label
-          htmlFor="language-select"
-          className="mr-2 text-blue-200 font-medium"
-        >
-          Language:
-        </label>
-        <select
-          id="language-select"
-          value={currentLanguage}
-          onChange={(e) => {
-            setCurrentLanguage(e.target.value);
-            stopRecording();
-          }}
-          className="bg-gray-800 text-white rounded px-3 py-1 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        >
-          {LANGUAGE_OPTIONS.map((opt) => (
-            <option key={opt.code} value={opt.code}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Header */}
+      <header className="sticky inset-0 top-0 z-20 p-6">
+        <div className="flex items-center justify-between">
+          {/* Logo/Title */}
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                AI Assistant
+              </h1>
+              <p className="text-sm text-slate-400">
+                Intelligent Voice Interface
+              </p>
+            </div>
+          </div>
 
-      {/* Search Results Display */}
+          {/* Language Selector */}
+          <div className="flex items-center space-x-3">
+            <Globe className="w-5 h-5 text-slate-400" />
+            <select
+              value={currentLanguage}
+              onChange={(e) => {
+                setCurrentLanguage(e.target.value);
+                stopRecording();
+              }}
+              className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/50 transition-all duration-200"
+            >
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <option
+                  key={opt.code}
+                  value={opt.code}
+                  className="bg-slate-800"
+                >
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </header>
+
+      {/* Search Results */}
       {searchResults.length > 0 && (
-        <div
-          id="search-results"
-          className="absolute top-5 left-5 z-10 bg-gray-800 bg-opacity-70 p-4 rounded-xl max-w-sm border border-gray-700 shadow-lg"
-        >
-          <h3 className="text-lg font-semibold mb-2 text-blue-300">Sources</h3>
-          <ul className="list-none p-0 m-0">
-            {searchResults.map((result, index) => (
-              <li key={index} className="mb-2 last:mb-0">
+        <div className="absolute top-24 left-6 z-10 max-w-sm">
+          <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50 shadow-2xl">
+            <div className="flex items-center space-x-2 mb-4">
+              <ExternalLink className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-lg font-semibold text-slate-200">Sources</h3>
+            </div>
+            <div className="space-y-3">
+              {searchResults.map((result, index) => (
                 <a
+                  key={index}
                   href={result.uri}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sky-400 hover:underline text-sm block"
+                  className="block p-3 bg-slate-800/50 rounded-xl hover:bg-slate-700/50 transition-all duration-200 group"
                 >
-                  {result.title}
+                  <div className="text-cyan-400 group-hover:text-cyan-300 text-sm font-medium line-clamp-2">
+                    {result.title}
+                  </div>
                 </a>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Camera Button for Crop Disease Diagnosis */}
-      <div className="w-full flex flex-col items-center mt-8">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-0 relative z-10">
+        {/* Image Preview */}
         {diagnosePreview && (
-          <div className="w-full max-w-2xl bg-gray-950 rounded-xl p-6 shadow-lg border border-red-700 flex flex-col items-center mt-4">
-            <div className="text-red-200 font-semibold mb-2">Preview</div>
-            <img
-              src={diagnosePreview}
-              alt="Selected crop disease"
-              className="max-h-64 rounded mb-2"
-            />
-            <div className="text-xs text-gray-400 mb-2">
-              {diagnoseLoading
-                ? "Analyzing image..."
-                : "Image ready for analysis."}
+          <div className="mb-8 w-full max-w-md">
+            <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50 shadow-2xl">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center space-x-2 text-amber-400 mb-2">
+                  <Camera className="w-5 h-5" />
+                  <span className="font-medium">Image Preview</span>
+                </div>
+              </div>
+              <div className="relative overflow-hidden rounded-xl">
+                <img
+                  src={diagnosePreview || "/placeholder.svg"}
+                  alt="Selected crop disease"
+                  className="w-full h-48 object-cover"
+                />
+                {diagnoseLoading && (
+                  <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-slate-400 text-center mt-3">
+                {diagnoseLoading
+                  ? "Analyzing image..."
+                  : "Image ready for analysis"}
+              </p>
             </div>
           </div>
         )}
+
+        {/* Dashboard */}
+        {dashboardData.length > 0 && (
+          <div className="w-full max-w-4xl mb-8">
+            {dashboardError && (
+              <div className="mb-6 p-4 bg-red-900/50 backdrop-blur-xl border border-red-700/50 rounded-2xl text-red-200">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                  <span className="font-medium">Error:</span>
+                  <span>{dashboardError}</span>
+                </div>
+              </div>
+            )}
+            <div className="w-full pb-48">
+              <DashboardView results={dashboardData} />
+            </div>
+          </div>
+        )}
+      </main>
+
+      <div className="fixed bottom-0 left-0 right-0 w-full flex flex-col items-center justify-center z-50">
+        {/* Control Panel */}
+        <div className="bg-slate-900/50 backdrop-blur-xl w-min rounded-3xl p-8 border border-slate-700/50 shadow-2xl">
+          <div className="flex items-center justify-center space-x-6">
+            {/* Camera Button */}
+            <button
+              onClick={handleManualDiagnoseRequest}
+              disabled={diagnoseLoading}
+              className="group relative p-4 bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-amber-500/25"
+            >
+              <Camera className="w-6 h-6 text-white" />
+              <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+
+            {/* Reset Button */}
+            <button
+              onClick={resetSession}
+              disabled={isRecording}
+              className="group relative p-4 bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-slate-500/25"
+            >
+              <RotateCcw className="w-6 h-6 text-white" />
+              <div className="absolute -top-2 -right-2 w-4 h-4 bg-slate-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+
+            {/* Clear History Button */}
+            <button
+              onClick={handleClearHistory}
+              disabled={dashboardData.length === 0}
+              className="group relative p-4 bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-yellow-500/25"
+            >
+              <Trash2 className="w-6 h-6 text-white" />
+              <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+
+            {/* Recording Controls */}
+            <div className="flex items-center space-x-4">
+              {/* Start Recording */}
+              <button
+                onClick={startRecording}
+                disabled={isRecording}
+                className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                  isRecording
+                    ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                    : "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
+                }`}
+              >
+                <Mic className="w-8 h-8 text-white" />
+                {!isRecording && (
+                  <div className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></div>
+                )}
+              </button>
+
+              {/* Stop Recording */}
+              <button
+                onClick={stopRecording}
+                disabled={!isRecording}
+                className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                  !isRecording
+                    ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                    : "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
+                }`}
+              >
+                <MicOff className="w-8 h-8 text-white" />
+                {isRecording && (
+                  <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse"></div>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Recording Indicator */}
+          {isRecording && (
+            <div className="flex items-center justify-center mt-6 space-x-3">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-red-400 font-medium">Recording...</span>
+              <div className="flex space-x-1">
+                <div className="w-1 h-4 bg-red-400 rounded-full animate-pulse"></div>
+                <div className="w-1 h-6 bg-red-400 rounded-full animate-pulse delay-100"></div>
+                <div className="w-1 h-4 bg-red-400 rounded-full animate-pulse delay-200"></div>
+                <div className="w-1 h-6 bg-red-400 rounded-full animate-pulse delay-300"></div>
+                <div className="w-1 h-4 bg-red-400 rounded-full animate-pulse delay-400"></div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Status Bar */}
+        <footer className="relative z-10 p-6">
+          <div className="text-center">
+            {error ? (
+              <div className="inline-flex items-center space-x-2 px-4 py-2 bg-red-900/50 backdrop-blur-xl border border-red-700/50 rounded-full text-red-200">
+                <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                <span>Error: {error}</span>
+              </div>
+            ) : status ? (
+              <div className="inline-flex items-center space-x-2 px-4 py-2 bg-cyan-900/50 backdrop-blur-xl border border-cyan-700/50 rounded-full text-cyan-200">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                <span>{status}</span>
+              </div>
+            ) : (
+              <div className="text-slate-400">Ready to assist</div>
+            )}
+          </div>
+        </footer>
       </div>
+
+      {/* Camera Modal */}
       <CameraDiagnosisModal
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
         onCapture={handleImageCapture}
       />
 
-      {/* Live Text Prompter & Dashboard */}
-      <div className="flex-1 flex items-center justify-center w-full">
-        {dashboardData.length > 0 && (
-          <div className="w-full flex flex-col items-center">
-            {dashboardError && (
-              <div className="mb-4 p-4 bg-red-700 text-white rounded shadow max-w-xl w-full text-center">
-                <strong>Error:</strong> {dashboardError}
-              </div>
-            )}
-            <DashboardView results={dashboardData} />
-          </div>
-        )}
-      </div>
-
-      {/* Controls */}
-      <div className=" flex flex-col items-center justify-center gap-4 z-10">
-        <div className="flex gap-x-4 items-stretch justify-stretch w-full">
-          <button
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 shadow-lg mb-2"
-            onClick={handleManualDiagnoseRequest}
-            disabled={diagnoseLoading}
-            aria-label="Diagnose Crop Disease (Camera)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-6 h-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M2.25 15.75v-7.5A2.25 2.25 0 014.5 6h2.379a1.5 1.5 0 001.06-.44l.94-.94A1.5 1.5 0 0110.44 4.5h3.12a1.5 1.5 0 011.06.44l.94.94a1.5 1.5 0 001.06.44H19.5a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-15A2.25 2.25 0 012.25 15.75z"
-              />
-              <circle
-                cx="12"
-                cy="12"
-                r="3.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </button>
-          <button
-            id="resetButton"
-            onClick={resetSession} // Use the resetSession from hook
-            disabled={isRecording}
-            aria-label="Reset Session"
-            className="p-4 rounded-full bg-gray-700 text-white shadow-lg hover:bg-gray-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hidden"
-          >
-            <BiReset size={35} />
-          </button>
-          <button
-            id="clearHistoryButton"
-            onClick={handleClearHistory}
-            disabled={dashboardData.length === 0}
-            aria-label="Clear Chat History"
-            className="p-4 rounded-full bg-yellow-600 text-white shadow-lg hover:bg-yellow-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {/* Trash/clear icon */}
-            <TbTrash size={35} />
-          </button>
-          <button
-            id="startButton"
-            onClick={startRecording} // Use the startRecording from hook
-            disabled={isRecording}
-            aria-label="Start Recording"
-            className="p-4 rounded-full bg-red-600 text-white shadow-lg hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg
-              viewBox="0 0 100 100"
-              width="32px"
-              height="32px"
-              fill="#ffffff"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="50" cy="50" r="50" />
-            </svg>
-          </button>
-          <button
-            id="stopButton"
-            onClick={stopRecording} // Use the stopRecording from hook
-            disabled={!isRecording}
-            aria-label="Stop Recording"
-            className="p-4 rounded-full bg-gray-300 text-gray-800 shadow-lg hover:bg-gray-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg
-              viewBox="0 0 100 100"
-              width="32px"
-              height="32px"
-              fill="#000000"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect x="0" y="0" width="100" height="100" rx="15" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Status Display */}
-      <div
-        id="status"
-        className="z-10 text-center text-lg font-medium text-blue-300"
-      >
-        {error ? `Error: ${error}` : status}
-      </div>
-
-      {/* 3D Visualizer Component */}
+      {/* Audio Visualizer Placeholder */}
       {inputNode && outputNode && (
-        <div>Visualizing</div>
-        // <gdm-live-audio-visuals-3d
-        //   .inputNode=${inputNode}
-        //   .outputNode=${outputNode}
-        // ></gdm-live-audio-visuals-3d>
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-slate-500 text-sm">
+          Audio Visualizer Active
+        </div>
       )}
     </div>
   );
