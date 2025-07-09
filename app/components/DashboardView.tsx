@@ -274,7 +274,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
   };
 
   return (
-    <div className="w-full flex flex-col pb-48 items-center gap-4 md:p-8 max-h-[80vh] overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+    <div className="w-full flex flex-col h-full flex-1  items-center gap-4 md:px-8 py-28 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
       {results?.map((result, i) => {
         if (!result) return <React.Fragment key={i} />;
 
@@ -350,7 +350,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
         ) {
           const diseaseResult = result as CropDiseaseDiagnosis;
           const key = `dis-${i}`;
-          const isExpanded = expandedIndexes.has(key);
+          const isExpanded = !expandedIndexes.has(key);
 
           return (
             <div
@@ -484,7 +484,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
               : "-";
           })();
 
-          const isExpanded = expandedIndexes.has(key);
+          const isExpanded = !expandedIndexes.has(key);
 
           return (
             <div

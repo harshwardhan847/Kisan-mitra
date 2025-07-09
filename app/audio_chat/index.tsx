@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAudioContexts } from "~/hooks/useAudioContexts";
 import { useLanguage, LANGUAGE_OPTIONS } from "../context/LanguageContext";
 import { useGeminiSession } from "~/hooks/useGeminiSession";
@@ -19,9 +19,13 @@ import {
   ExternalLink,
   Sparkles,
   Languages,
+  MessageCircle,
+  ChevronsUp,
+  ChevronsDown,
 } from "lucide-react";
 import type { PreviousChats } from "~/types/tool_types";
 import LiveAudioVisual3D from "~/components/3dAudioVisualizer";
+import BlurText from "~/components/BlurText";
 
 interface SearchResult {
   uri: string;
@@ -33,6 +37,7 @@ const MAX_CONTEXT_CHATS = 10;
 const LiveAudio: React.FC = () => {
   // State for UI display
   const [status, setStatus] = useState("");
+  const [isControlPanel, setIsControlPanel] = useState(true);
   const [error, setError] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState<{
@@ -128,8 +133,16 @@ const LiveAudio: React.FC = () => {
     updateError,
   });
 
+  useEffect(() => {
+    if (dashboardData.length > 0) {
+      setIsControlPanel(false);
+    }
+  }, [dashboardData]);
+
   const handleClearHistory = () => {
     setDashboardData([]);
+    stopRecording();
+    setIsControlPanel(true);
     setDashboardError("");
     setLivePrompt("");
   };
@@ -165,7 +178,7 @@ const LiveAudio: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white relative overflow-hidden">
+    <div className="min-h-screen flex flex-col w-full flex-1 h-full bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -198,7 +211,7 @@ const LiveAudio: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="sticky inset-0 top-0 z-20 p-6">
+      <header className="fixed inset-0 top-0 z-20 p-6">
         <div className="flex items-center justify-between">
           {/* Logo/Title */}
           <div className="flex items-center space-x-3">
@@ -220,12 +233,21 @@ const LiveAudio: React.FC = () => {
 
           {/* Language Selector */}
           <div className="flex items-center space-x-3">
+            {/* Clear History Button */}
+            <button
+              onClick={handleClearHistory}
+              disabled={dashboardData.length === 0}
+              className="cursor-pointer p-2 md:mr-4  transition-all border rounded-md duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:scale-100"
+            >
+              <MessageCircle className="w-6 h-6 text-white" />
+            </button>
             <Languages className="w-5 h-5 text-slate-400" />
             <select
               value={currentLanguage}
               onChange={(e) => {
                 setCurrentLanguage(e.target.value);
                 stopRecording();
+                setIsControlPanel(true);
               }}
               className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/50 transition-all duration-200"
             >
@@ -272,7 +294,7 @@ const LiveAudio: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center justify-center md:px-6 py-0 relative z-10">
+      <main className="flex-1 h-full flex flex-col items-center justify-center md:px-6 py-0 relative z-10">
         {/* Image Preview */}
         {diagnosePreview && (
           <div className="mb-8 w-full max-w-md">
@@ -305,8 +327,8 @@ const LiveAudio: React.FC = () => {
         )}
 
         {/* Dashboard */}
-        {dashboardData.length > 0 && (
-          <div className="w-full max-w-4xl mb-8">
+        {dashboardData.length > 0 ? (
+          <div className="w-full max-w-4xl h-full flex-1">
             {dashboardError && (
               <div className="mb-6 p-4 bg-red-900/50 backdrop-blur-xl border border-red-700/50 rounded-2xl text-red-200">
                 <div className="flex items-center space-x-2">
@@ -316,22 +338,53 @@ const LiveAudio: React.FC = () => {
                 </div>
               </div>
             )}
-
             <DashboardView results={[...(dashboardData || [])].reverse()} />
           </div>
+        ) : (
+          <>
+            {!diagnoseLoading && (
+              <div className="w-full h-full flex items-center justify-center flex-1 min-h-full">
+                <BlurText
+                  text="Hey Mate!"
+                  delay={150}
+                  animateBy="words"
+                  direction="top"
+                  onAnimationComplete={() => {}}
+                  className=" text-3xl text-blue-200  md:text-9xl font-semibold mb-8"
+                />
+              </div>
+            )}
+          </>
         )}
       </main>
 
-      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-50">
+      <div
+        className={`fixed bottom-0 left-1/2 transition-all transform -translate-x-1/2 flex flex-col items-center justify-center z-50 ${
+          isControlPanel ? "translate-y-0" : " translate-y-[80%]"
+        }`}
+      >
         {/* Control Panel */}
         {status ? (
           <div className="bg-slate-900/50 mb-4 backdrop-blur-xl relative w-min rounded-3xl p-8 border border-slate-700/50 shadow-2xl">
             {/* Audio Visualizer Placeholder */}
-            {inputNode && outputNode && isRecording && (
+            {/* {inputNode && outputNode && isRecording && (
               <div className="absolute top-0 pointer-events-none z-50 w-40 h-40 left-1/2 -translate-y-[60%] transform -translate-x-1/2 text-slate-500 text-sm">
                 <LiveAudioVisual3D />
               </div>
-            )}
+            )} */}
+            <button
+              onClick={() => {
+                setIsControlPanel(!isControlPanel);
+              }}
+              className={`absolute cursor-pointer top-0 bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 shadow-2xl p-2 py-3 rounded-full aspect-square left-1/2 -translate-y-[40%] transform -translate-x-1/2 text-slate-500 text-sm`}
+            >
+              {isControlPanel ? (
+                <ChevronsDown size={25} className="" />
+              ) : (
+                <ChevronsUp size={25} className="" />
+              )}
+            </button>
+
             <div className="flex items-center justify-center space-x-6">
               {/* Camera Button */}
               <button
@@ -353,49 +406,43 @@ const LiveAudio: React.FC = () => {
                 <div className="absolute -top-2 -right-2 w-4 h-4 bg-slate-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button> */}
 
-              {/* Clear History Button */}
-              <button
-                onClick={handleClearHistory}
-                disabled={dashboardData.length === 0}
-                className="group relative cursor-pointer p-4 bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-yellow-500/25"
-              >
-                <Trash2 className="w-6 h-6 text-white" />
-                <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </button>
-
               {/* Recording Controls */}
               <div className="flex items-center space-x-4">
-                {/* Start Recording */}
-                <button
-                  onClick={startRecording}
-                  disabled={isRecording}
-                  className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                    isRecording
-                      ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                      : " cursor-pointer bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
-                  }`}
-                >
-                  <Mic className="w-8 h-8 text-white" />
-                  {!isRecording && (
-                    <div className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></div>
-                  )}
-                </button>
-
-                {/* Stop Recording */}
-                <button
-                  onClick={stopRecording}
-                  disabled={!isRecording}
-                  className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                    !isRecording
-                      ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                      : "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
-                  }`}
-                >
-                  <MicOff className="w-8 h-8 text-white" />
-                  {isRecording && (
-                    <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse"></div>
-                  )}
-                </button>
+                {isRecording ? (
+                  <button
+                    onClick={() => {
+                      stopRecording();
+                    }}
+                    disabled={!isRecording}
+                    className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                      isRecording
+                        ? "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
+                        : "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                    }`}
+                  >
+                    <MicOff className="w-8 h-8 text-white" />
+                    {isRecording && (
+                      <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse" />
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      startRecording();
+                    }}
+                    disabled={isRecording}
+                    className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                      isRecording
+                        ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                        : " cursor-pointer bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
+                    }`}
+                  >
+                    <Mic className="w-8 h-8 text-white" />
+                    {!isRecording && (
+                      <div className="absolute inset-0 scale-75 rounded-full bg-red-400/20 animate-ping" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
