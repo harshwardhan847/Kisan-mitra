@@ -26,6 +26,7 @@ import {
 import type { PreviousChats } from "~/types/tool_types";
 import LiveAudioVisual3D from "~/components/3dAudioVisualizer";
 import BlurText from "~/components/BlurText";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface SearchResult {
   uri: string;
@@ -364,40 +365,48 @@ const LiveAudio: React.FC = () => {
         }`}
       >
         {/* Control Panel */}
-        {status ? (
-          <div className="bg-slate-900/50 mb-4 backdrop-blur-xl relative w-min rounded-3xl p-8 border border-slate-700/50 shadow-2xl">
-            {/* Audio Visualizer Placeholder */}
-            {/* {inputNode && outputNode && isRecording && (
+
+        {!!status && (
+          <AnimatePresence>
+            <motion.div
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              initial={{ y: "100%", scale: 0.4 }}
+              exit={{ y: "100%", scale: 0.4 }}
+              animate={{ y: 0, scale: 1 }}
+              className="bg-slate-900/50 mb-4 backdrop-blur-xl relative w-min rounded-3xl p-8 border border-slate-700/50 shadow-2xl"
+            >
+              {/* Audio Visualizer Placeholder */}
+              {/* {inputNode && outputNode && isRecording && (
               <div className="absolute top-0 pointer-events-none z-50 w-40 h-40 left-1/2 -translate-y-[60%] transform -translate-x-1/2 text-slate-500 text-sm">
                 <LiveAudioVisual3D />
               </div>
             )} */}
-            <button
-              onClick={() => {
-                setIsControlPanel(!isControlPanel);
-              }}
-              className={`absolute cursor-pointer top-0 bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 shadow-2xl p-2 py-3 rounded-full aspect-square left-1/2 -translate-y-[40%] transform -translate-x-1/2 text-slate-500 text-sm`}
-            >
-              {isControlPanel ? (
-                <ChevronsDown size={25} className="" />
-              ) : (
-                <ChevronsUp size={25} className="" />
-              )}
-            </button>
-
-            <div className="flex items-center justify-center space-x-6">
-              {/* Camera Button */}
               <button
-                onClick={handleManualDiagnoseRequest}
-                disabled={diagnoseLoading}
-                className="group relative cursor-pointer p-4 bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-amber-500/25"
+                onClick={() => {
+                  setIsControlPanel(!isControlPanel);
+                }}
+                className={`absolute cursor-pointer top-0 bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 shadow-2xl p-2 py-3 rounded-full aspect-square left-1/2 -translate-y-[40%] transform -translate-x-1/2 text-slate-500 text-sm`}
               >
-                <Camera className="w-6 h-6 text-white" />
-                <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                {isControlPanel ? (
+                  <ChevronsDown size={25} className="" />
+                ) : (
+                  <ChevronsUp size={25} className="" />
+                )}
               </button>
 
-              {/* Reset Button */}
-              {/* <button
+              <div className="flex items-center justify-center space-x-6">
+                {/* Camera Button */}
+                <button
+                  onClick={handleManualDiagnoseRequest}
+                  disabled={diagnoseLoading}
+                  className="group relative cursor-pointer p-4 bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-amber-500/25"
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </button>
+
+                {/* Reset Button */}
+                {/* <button
                 onClick={resetSession}
                 disabled={isRecording}
                 className="group relative cursor-pointer p-4 bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-slate-500/25"
@@ -406,48 +415,48 @@ const LiveAudio: React.FC = () => {
                 <div className="absolute -top-2 -right-2 w-4 h-4 bg-slate-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button> */}
 
-              {/* Recording Controls */}
-              <div className="flex items-center space-x-4">
-                {isRecording ? (
-                  <button
-                    onClick={() => {
-                      stopRecording();
-                    }}
-                    disabled={!isRecording}
-                    className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                      isRecording
-                        ? "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
-                        : "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                    }`}
-                  >
-                    <MicOff className="w-8 h-8 text-white" />
-                    {isRecording && (
-                      <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse" />
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      startRecording();
-                    }}
-                    disabled={isRecording}
-                    className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                      isRecording
-                        ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                        : " cursor-pointer bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
-                    }`}
-                  >
-                    <Mic className="w-8 h-8 text-white" />
-                    {!isRecording && (
-                      <div className="absolute inset-0 scale-75 rounded-full bg-red-400/20 animate-ping" />
-                    )}
-                  </button>
-                )}
+                {/* Recording Controls */}
+                <div className="flex items-center space-x-4">
+                  {isRecording ? (
+                    <button
+                      onClick={() => {
+                        stopRecording();
+                      }}
+                      disabled={!isRecording}
+                      className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                        isRecording
+                          ? "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
+                          : "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                      }`}
+                    >
+                      <MicOff className="w-8 h-8 text-white" />
+                      {isRecording && (
+                        <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse" />
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        startRecording();
+                      }}
+                      disabled={isRecording}
+                      className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                        isRecording
+                          ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                          : " cursor-pointer bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
+                      }`}
+                    >
+                      <Mic className="w-8 h-8 text-white" />
+                      {!isRecording && (
+                        <div className="absolute inset-0 scale-75 rounded-full bg-red-400/20 animate-ping" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Recording Indicator */}
-            {/* {isRecording && (
+              {/* Recording Indicator */}
+              {/* {isRecording && (
             <div className="flex items-center justify-center mt-6 space-x-3">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
               <span className="text-red-400 font-medium">Recording...</span>
@@ -460,13 +469,25 @@ const LiveAudio: React.FC = () => {
               </div>
             </div>
           )} */}
-          </div>
-        ) : (
-          <div className="inline-flex mb-4 items-center space-x-2 px-4 py-2 bg-cyan-900/50 backdrop-blur-xl border border-cyan-700/50 rounded-full text-cyan-200">
-            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-            <span>Connecting...</span>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         )}
+
+        {!status && (
+          <AnimatePresence>
+            <motion.div
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              initial={{ y: "100%", scale: 0.4 }}
+              exit={{ y: "100%", scale: 0.4 }}
+              animate={{ y: 0, scale: 1 }}
+              className="inline-flex mb-4 items-center space-x-2 px-4 py-2 bg-cyan-900/50 backdrop-blur-xl border border-cyan-700/50 rounded-full text-cyan-200"
+            >
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+              <span>Connecting...</span>
+            </motion.div>
+          </AnimatePresence>
+        )}
+
         {/* Status Bar */}
         {/* <footer className="relative z-10 p-6">
           <div className="text-center">
