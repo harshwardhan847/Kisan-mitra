@@ -18,8 +18,10 @@ import {
   Loader2,
   ExternalLink,
   Sparkles,
+  Languages,
 } from "lucide-react";
 import type { PreviousChats } from "~/types/tool_types";
+import LiveAudioVisual3D from "~/components/3dAudioVisualizer";
 
 interface SearchResult {
   uri: string;
@@ -200,14 +202,17 @@ const LiveAudio: React.FC = () => {
         <div className="flex items-center justify-between">
           {/* Logo/Title */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl hidden md:block font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                 Kisan Mitra
               </h1>
-              <p className="text-sm text-slate-400">
+              <h1 className="text-2xl block md:hidden font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                KM
+              </h1>
+              <p className="text-sm md:block hidden text-slate-400">
                 Intelligent Voice Interface
               </p>
             </div>
@@ -215,7 +220,7 @@ const LiveAudio: React.FC = () => {
 
           {/* Language Selector */}
           <div className="flex items-center space-x-3">
-            <Globe className="w-5 h-5 text-slate-400" />
+            <Languages className="w-5 h-5 text-slate-400" />
             <select
               value={currentLanguage}
               onChange={(e) => {
@@ -231,6 +236,7 @@ const LiveAudio: React.FC = () => {
                   className="bg-slate-800"
                 >
                   {opt.label}
+                  {/* <span className="inline md:hidden">{opt.code}</span> */}
                 </option>
               ))}
             </select>
@@ -266,7 +272,7 @@ const LiveAudio: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-0 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center md:px-6 py-0 relative z-10">
         {/* Image Preview */}
         {diagnosePreview && (
           <div className="mb-8 w-full max-w-md">
@@ -310,85 +316,91 @@ const LiveAudio: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="w-full pb-48">
-              <DashboardView results={dashboardData} />
-            </div>
+
+            <DashboardView results={[...(dashboardData || [])].reverse()} />
           </div>
         )}
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 w-full flex flex-col items-center justify-center z-50">
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-50">
         {/* Control Panel */}
-        <div className="bg-slate-900/50 backdrop-blur-xl w-min rounded-3xl p-8 border border-slate-700/50 shadow-2xl">
-          <div className="flex items-center justify-center space-x-6">
-            {/* Camera Button */}
-            <button
-              onClick={handleManualDiagnoseRequest}
-              disabled={diagnoseLoading}
-              className="group relative p-4 bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-amber-500/25"
-            >
-              <Camera className="w-6 h-6 text-white" />
-              <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-
-            {/* Reset Button */}
-            <button
-              onClick={resetSession}
-              disabled={isRecording}
-              className="group relative p-4 bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-slate-500/25"
-            >
-              <RotateCcw className="w-6 h-6 text-white" />
-              <div className="absolute -top-2 -right-2 w-4 h-4 bg-slate-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-
-            {/* Clear History Button */}
-            <button
-              onClick={handleClearHistory}
-              disabled={dashboardData.length === 0}
-              className="group relative p-4 bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-yellow-500/25"
-            >
-              <Trash2 className="w-6 h-6 text-white" />
-              <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-
-            {/* Recording Controls */}
-            <div className="flex items-center space-x-4">
-              {/* Start Recording */}
+        {status ? (
+          <div className="bg-slate-900/50 mb-4 backdrop-blur-xl relative w-min rounded-3xl p-8 border border-slate-700/50 shadow-2xl">
+            {/* Audio Visualizer Placeholder */}
+            {inputNode && outputNode && isRecording && (
+              <div className="absolute top-0 pointer-events-none z-50 w-40 h-40 left-1/2 -translate-y-[60%] transform -translate-x-1/2 text-slate-500 text-sm">
+                <LiveAudioVisual3D />
+              </div>
+            )}
+            <div className="flex items-center justify-center space-x-6">
+              {/* Camera Button */}
               <button
-                onClick={startRecording}
+                onClick={handleManualDiagnoseRequest}
+                disabled={diagnoseLoading}
+                className="group relative cursor-pointer p-4 bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-amber-500/25"
+              >
+                <Camera className="w-6 h-6 text-white" />
+                <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </button>
+
+              {/* Reset Button */}
+              {/* <button
+                onClick={resetSession}
                 disabled={isRecording}
-                className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                  isRecording
-                    ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                    : "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
-                }`}
+                className="group relative cursor-pointer p-4 bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-slate-500/25"
               >
-                <Mic className="w-8 h-8 text-white" />
-                {!isRecording && (
-                  <div className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></div>
-                )}
-              </button>
+                <RotateCcw className="w-6 h-6 text-white" />
+                <div className="absolute -top-2 -right-2 w-4 h-4 bg-slate-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </button> */}
 
-              {/* Stop Recording */}
+              {/* Clear History Button */}
               <button
-                onClick={stopRecording}
-                disabled={!isRecording}
-                className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                  !isRecording
-                    ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                    : "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
-                }`}
+                onClick={handleClearHistory}
+                disabled={dashboardData.length === 0}
+                className="group relative cursor-pointer p-4 bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-yellow-500/25"
               >
-                <MicOff className="w-8 h-8 text-white" />
-                {isRecording && (
-                  <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse"></div>
-                )}
+                <Trash2 className="w-6 h-6 text-white" />
+                <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>
-            </div>
-          </div>
 
-          {/* Recording Indicator */}
-          {isRecording && (
+              {/* Recording Controls */}
+              <div className="flex items-center space-x-4">
+                {/* Start Recording */}
+                <button
+                  onClick={startRecording}
+                  disabled={isRecording}
+                  className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                    isRecording
+                      ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                      : " cursor-pointer bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 hover:scale-110 hover:shadow-red-500/50"
+                  }`}
+                >
+                  <Mic className="w-8 h-8 text-white" />
+                  {!isRecording && (
+                    <div className="absolute inset-0 rounded-full bg-red-400/20 animate-ping"></div>
+                  )}
+                </button>
+
+                {/* Stop Recording */}
+                <button
+                  onClick={stopRecording}
+                  disabled={!isRecording}
+                  className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
+                    !isRecording
+                      ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
+                      : "bg-gradient-to-br from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 hover:scale-110 hover:shadow-slate-500/50"
+                  }`}
+                >
+                  <MicOff className="w-8 h-8 text-white" />
+                  {isRecording && (
+                    <div className="absolute inset-0 rounded-full bg-slate-400/20 animate-pulse"></div>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Recording Indicator */}
+            {/* {isRecording && (
             <div className="flex items-center justify-center mt-6 space-x-3">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
               <span className="text-red-400 font-medium">Recording...</span>
@@ -400,10 +412,16 @@ const LiveAudio: React.FC = () => {
                 <div className="w-1 h-4 bg-red-400 rounded-full animate-pulse delay-400"></div>
               </div>
             </div>
-          )}
-        </div>
+          )} */}
+          </div>
+        ) : (
+          <div className="inline-flex mb-4 items-center space-x-2 px-4 py-2 bg-cyan-900/50 backdrop-blur-xl border border-cyan-700/50 rounded-full text-cyan-200">
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+            <span>Connecting...</span>
+          </div>
+        )}
         {/* Status Bar */}
-        <footer className="relative z-10 p-6">
+        {/* <footer className="relative z-10 p-6">
           <div className="text-center">
             {error ? (
               <div className="inline-flex items-center space-x-2 px-4 py-2 bg-red-900/50 backdrop-blur-xl border border-red-700/50 rounded-full text-red-200">
@@ -419,7 +437,7 @@ const LiveAudio: React.FC = () => {
               <div className="text-slate-400">Ready to assist</div>
             )}
           </div>
-        </footer>
+        </footer> */}
       </div>
 
       {/* Camera Modal */}
@@ -428,13 +446,6 @@ const LiveAudio: React.FC = () => {
         onClose={() => setCameraOpen(false)}
         onCapture={handleImageCapture}
       />
-
-      {/* Audio Visualizer Placeholder */}
-      {inputNode && outputNode && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-slate-500 text-sm">
-          Audio Visualizer Active
-        </div>
-      )}
     </div>
   );
 };

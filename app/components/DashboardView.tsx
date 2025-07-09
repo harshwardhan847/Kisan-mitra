@@ -274,8 +274,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
   };
 
   return (
-    <div className="w-full flex flex-col items-center gap-8 max-h-[80vh] overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-      {results?.reverse()?.map((result, i) => {
+    <div className="w-full flex flex-col pb-48 items-center gap-4 md:p-8 max-h-[80vh] overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+      {results?.map((result, i) => {
         if (!result) return <React.Fragment key={i} />;
 
         // Government Schemes
@@ -284,10 +284,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
           return (
             <div
               key={"gov-" + i}
-              className="w-full max-w-4xl bg-gradient-to-br from-green-900/20 to-emerald-900/20 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-green-500/30 transition-all duration-300 hover:shadow-green-500/10"
+              className="w-full max-w-4xl bg-gradient-to-br from-green-900/20 to-emerald-900/20 backdrop-blur-xl rounded-3xl p-4 md:p-8 shadow-2xl border border-green-500/30 transition-all duration-300 hover:shadow-green-500/10"
             >
               <div className="flex items-center space-x-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
+                <div className="w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -312,13 +312,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                     key={idx}
                     className="bg-slate-900/40 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/30 hover:border-green-500/30 transition-all duration-300 group"
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex flex-col md:flex-row items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-xl font-bold text-green-200 mb-2 group-hover:text-green-100 transition-colors">
                           {s.name}
                         </h3>
                         <p className="text-slate-300 mb-3">{s.summary}</p>
-                        <div className="inline-flex items-center space-x-2 px-3 py-1 bg-green-500/20 rounded-full">
+                        <div className="inline-flex items-center space-x-2 px-3 py-1 bg-green-500/20 rounded-md">
                           <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                           <span className="text-xs text-green-300 font-medium">
                             {s.eligibility}
@@ -329,7 +329,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                         href={s.applicationLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-500/25"
+                        className="flex items-center space-x-2 mt-4 md:mt-0 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-500/25"
                       >
                         <span>Apply</span>
                         <ExternalLink className="w-4 h-4" />
@@ -355,11 +355,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
           return (
             <div
               key={key}
-              className="w-full max-w-4xl bg-gradient-to-br from-red-900/20 to-pink-900/20 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-red-500/30 transition-all duration-300 hover:shadow-red-500/10"
+              className="w-full max-w-4xl bg-gradient-to-br from-red-900/20 to-pink-900/20 backdrop-blur-xl rounded-3xl p-4 md:p-8 shadow-2xl border border-red-500/30 transition-all duration-300 hover:shadow-red-500/10"
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center">
+                  <div className="w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center">
                     <AlertTriangle className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -489,23 +489,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
           return (
             <div
               key={key}
-              className="w-full max-w-4xl bg-gradient-to-br from-blue-900/20 to-cyan-900/20 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-blue-500/30 transition-all duration-300 hover:shadow-blue-500/10"
+              className="w-full max-w-4xl bg-gradient-to-br from-blue-900/20 to-cyan-900/20 backdrop-blur-xl rounded-3xl p-4 md:p-8 shadow-2xl border border-blue-500/30 transition-all duration-300 hover:shadow-blue-500/10"
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
+                  <div className="w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
                     <DollarSign className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-blue-300">
+                    <h2 className="text-lg md:text-2xl font-bold text-blue-300">
                       Market Analysis
                     </h2>
-                    <div className="flex items-center space-x-4 text-sm text-slate-400">
+                    <div className="flex flex-col md:flex-row items-start md:items-center space-x-4 text-sm text-slate-400">
                       <div className="flex items-center space-x-1">
                         <Leaf className="w-4 h-4" />
                         <span>{records[0]?.Commodity || "N/A"}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1 text-nowrap">
                         <Calendar className="w-4 h-4" />
                         <span>{dateRange}</span>
                       </div>
@@ -529,7 +529,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 md:mb-8">
                 <StatCard
                   label="Min Modal Price"
                   value={min}

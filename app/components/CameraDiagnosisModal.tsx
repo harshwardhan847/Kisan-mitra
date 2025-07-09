@@ -269,7 +269,7 @@ const CameraDiagnosisModal: React.FC<CameraDiagnosisModalProps> = ({
                 className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-xl font-medium transition-all duration-200 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-green-500/25 disabled:shadow-none flex items-center space-x-2"
               >
                 <Check className="w-4 h-4" />
-                <span>Analyze Image</span>
+                <span>Analyze</span>
               </button>
             </div>
           </div>

@@ -424,7 +424,6 @@ no matter what the previous language of conversation was now you have to talk in
           systemInstruction: {
             parts: [{ text: systemInstructions }],
           },
-          generationConfig: { speechConfig: { languageCode: currentLanguage } },
         },
       });
       sessionRef.current = session;
