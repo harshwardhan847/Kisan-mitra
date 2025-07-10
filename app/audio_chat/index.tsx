@@ -212,7 +212,7 @@ const LiveAudio: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="fixed left-0 right-0 h-min top-0 z-20 p-6">
+      <header className="fixed left-0 right-0 h-min top-0 z-20 p-6 backdrop-blur-3xl bg-gradient-to-br from-slate-950/50 via-blue-950/50 to-slate-900/50">
         <div className="flex items-center justify-between">
           {/* Logo/Title */}
           <div className="flex items-center space-x-3">
