@@ -35,6 +35,7 @@ import {
   Info,
   Sparkles,
 } from "lucide-react";
+import { extractUrlsFromText } from "~/utils/ai_parsing";
 
 interface StatCardProps {
   label: string;
@@ -326,7 +327,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                         </div>
                       </div>
                       <a
-                        href={s.applicationLink}
+                        href={extractUrlsFromText(s.applicationLink)?.[0] ?? ""}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center space-x-2 mt-4 md:mt-0 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-500/25"

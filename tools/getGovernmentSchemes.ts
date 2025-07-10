@@ -84,7 +84,7 @@ Respond only in ${language}. Use local agricultural terminology.
       "name": "Full scheme name in ${language}",
       "summary": "Short description of what it provides",
       "eligibility": "Eligibility criteria or who it applies to",
-      "applicationLink": "Direct official link to apply or view details"
+      "applicationLink": "Direct official link to apply or view details, this should only contain the application link/url to the website. No extra text."
     },
     ...
   ]

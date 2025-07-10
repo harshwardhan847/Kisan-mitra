@@ -18,3 +18,18 @@ export const getAIParsedResponse = (text: string) => {
 
   return parsedJSON;
 };
+
+export function extractUrlsFromText(text: string): string[] {
+  const urlRegex =
+    /\b(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s"')]+)?/g;
+
+  const matches = text.match(urlRegex) || [];
+
+  const normalized = matches.map((url) =>
+    url.startsWith("http://") || url.startsWith("https://")
+      ? url
+      : `http://${url}`
+  );
+
+  return normalized;
+}
