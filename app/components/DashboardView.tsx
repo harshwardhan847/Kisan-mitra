@@ -373,7 +373,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ results }) => {
                 </div>
                 <button
                   onClick={() => toggleExpand(key)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-600/50 transition-all duration-300 text-slate-300 hover:text-white"
+                  className="flex items-center cursor-pointer space-x-2 px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl border border-slate-600/50 transition-all duration-300 text-slate-300 hover:text-white"
                 >
                   <span className="text-sm font-medium">
                     {isExpanded ? "Collapse" : "Expand"} Details
