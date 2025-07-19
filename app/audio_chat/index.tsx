@@ -15,16 +15,18 @@ import {
   MicOff,
   Camera,
   ExternalLink,
-  Zap,
+  Sparkles,
   Languages,
   MessageCircle,
-  ChevronsUp,
   ChevronsDown,
-  Wand2,
 } from "lucide-react";
 import type { PreviousChats } from "~/types/tool_types";
 import BlurText from "~/components/BlurText";
 import { AnimatePresence, motion } from "framer-motion";
+
+import { MagicalButton } from "~/components/magical-button";
+import { MagicalOrb } from "~/components/magical-orb";
+import { MagicalParticles } from "~/components/magical-particles";
 
 interface SearchResult {
   uri: string;
@@ -171,7 +173,7 @@ const LiveAudio: React.FC = () => {
       }
     } catch {
       setDashboardError(
-        "The spell failed to diagnose the magical plant. Please try again."
+        "The enchantment failed to divine the plant's secrets. Please try again."
       );
     } finally {
       setDiagnoseLoading(false);
@@ -181,290 +183,458 @@ const LiveAudio: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col w-full flex-1 h-full bg-gradient-to-br from-purple-950 via-indigo-950 to-violet-900 text-amber-50 relative overflow-hidden">
-      {/* Magical Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-yellow-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
-        {/* Floating magical particles */}
-        <div className="absolute top-20 left-20 w-2 h-2 bg-amber-400 rounded-full animate-bounce opacity-60"></div>
-        <div className="absolute top-40 right-32 w-1 h-1 bg-yellow-300 rounded-full animate-ping opacity-40"></div>
-        <div className="absolute bottom-32 left-16 w-3 h-3 bg-amber-300 rounded-full animate-pulse opacity-50"></div>
+    <div className="min-h-screen flex flex-col w-full flex-1 h-full relative overflow-hidden">
+      {/* Enhanced Magical Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
+        {/* Animated gradient overlay */}
+        <motion.div
+          className="absolute inset-0 opacity-30"
+          animate={{
+            background: [
+              "radial-gradient(circle at 20% 50%, #7c3aed 0%, transparent 50%)",
+              "radial-gradient(circle at 80% 20%, #1e40af 0%, transparent 50%)",
+              "radial-gradient(circle at 40% 80%, #7c2d12 0%, transparent 50%)",
+              "radial-gradient(circle at 20% 50%, #7c3aed 0%, transparent 50%)",
+            ],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "linear",
+          }}
+        />
       </div>
 
-      {/* Magical Loading Overlay */}
-      {loading.active && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-purple-900/90 backdrop-blur-xl rounded-2xl p-8 border border-amber-600/50 shadow-2xl shadow-amber-500/20">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="relative">
-                <Wand2 className="h-12 w-12 text-amber-400 animate-spin" />
-                <div className="absolute inset-0 h-12 w-12 border-2 border-amber-400/20 rounded-full animate-ping"></div>
-              </div>
-              <div className="text-xl font-medium text-amber-200">
-                {loading.toolName
-                  ? `Casting Spell: ${loading.toolName}`
-                  : "Weaving Magic..."}
-              </div>
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce delay-200"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Magical Particles */}
+      <MagicalParticles />
 
-      {/* Magical Header */}
-      <header className="fixed left-0 right-0 h-min top-0 z-20 p-6 backdrop-blur-3xl bg-gradient-to-br from-purple-950/50 via-indigo-950/50 to-violet-900/50 border-b border-amber-600/20">
-        <div className="flex items-center justify-between">
-          {/* Magical Logo/Title */}
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <Zap className="w-6 h-6 text-purple-900" />
+      {/* Professional Loading Overlay */}
+      <AnimatePresence>
+        {loading.active && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center backdrop-blur-xl bg-black/60"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="relative"
+            >
+              {/* Magical loading orb */}
+              <MagicalOrb isActive={true} size={120} color="#fbbf24" />
+
+              {/* Loading text */}
+              <motion.div
+                className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center"
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+              >
+                <div className="text-xl font-semibold text-amber-200 mb-2">
+                  {loading.toolName
+                    ? `Weaving ${loading.toolName}`
+                    : "Channeling Magic"}
+                </div>
+                <div className="flex justify-center space-x-1">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="w-2 h-2 bg-amber-400 rounded-full"
+                      animate={{
+                        scale: [1, 1.5, 1],
+                        opacity: [0.5, 1, 0.5],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Number.POSITIVE_INFINITY,
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Professional Header */}
+      <motion.header
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="fixed left-0 right-0 top-0 z-20 backdrop-blur-xl bg-gradient-to-r from-slate-900/80 via-purple-900/80 to-indigo-900/80 border-b border-amber-500/20"
+      >
+        <div className="flex items-center justify-between p-6">
+          {/* Enhanced Logo */}
+          <motion.div
+            className="flex items-center space-x-4"
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <div className="relative">
+              <motion.div
+                className="w-12 h-12 bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg"
+                animate={{
+                  boxShadow: [
+                    "0 0 20px rgba(251, 191, 36, 0.3)",
+                    "0 0 30px rgba(251, 191, 36, 0.5)",
+                    "0 0 20px rgba(251, 191, 36, 0.3)",
+                  ],
+                }}
+                transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+              >
+                <Sparkles className="w-7 h-7 text-slate-900" />
+              </motion.div>
+              {/* Floating sparkles around logo */}
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-amber-300 rounded-full"
+                  animate={{
+                    x: [0, Math.cos(i * 2.1) * 25, 0],
+                    y: [0, Math.sin(i * 2.1) * 25, 0],
+                    opacity: [0, 1, 0],
+                    scale: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Number.POSITIVE_INFINITY,
+                    delay: i * 0.5,
+                    ease: "easeInOut",
+                  }}
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                  }}
+                />
+              ))}
             </div>
             <div>
-              <h1 className="text-2xl hidden md:block font-bold bg-gradient-to-r from-amber-400 to-yellow-400 bg-clip-text text-transparent">
-                Herbology Oracle
-              </h1>
-              <h1 className="text-2xl block md:hidden font-bold bg-gradient-to-r from-amber-400 to-yellow-400 bg-clip-text text-transparent">
-                HO
-              </h1>
-              <p className="text-sm md:block hidden text-amber-300/70">
+              <motion.h1
+                className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent"
+                animate={{
+                  backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                }}
+                transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY }}
+                style={{ backgroundSize: "200% 200%" }}
+              >
+                <span className="hidden md:inline">Herbology Oracle</span>
+                <span className="md:hidden">HO</span>
+              </motion.h1>
+              <p className="text-sm text-amber-200/70 hidden md:block font-medium">
                 Magical Voice Divination
               </p>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Spell Controls */}
-          <div className="flex items-center space-x-3">
-            {/* Clear Scrolls Button */}
-            <button
+          {/* Enhanced Controls */}
+          <div className="flex items-center space-x-4">
+            <MagicalButton
               onClick={handleClearHistory}
               disabled={dashboardData.length === 0}
-              className="cursor-pointer p-2 md:mr-4 transition-all border border-amber-600/50 rounded-md duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:scale-100 hover:bg-amber-600/20"
+              variant="secondary"
+              size="sm"
+              className="!p-3"
             >
-              <MessageCircle className="w-6 h-6 text-amber-300" />
-            </button>
-            <Languages className="w-5 h-5 text-amber-400" />
-            <select
-              value={currentLanguage}
-              onChange={(e) => {
-                setCurrentLanguage(e.target.value);
-                stopRecording();
-                setIsControlPanel(true);
-              }}
-              className="bg-purple-800/50 backdrop-blur-xl border border-amber-600/50 rounded-xl px-4 py-2 text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/50 transition-all duration-200"
-            >
-              {LANGUAGE_OPTIONS.map((opt) => (
-                <option
-                  key={opt.code}
-                  value={opt.code}
-                  className="bg-purple-800"
-                >
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </header>
+              <MessageCircle className="w-5 h-5 text-white" />
+            </MagicalButton>
 
-      {/* Ancient Scrolls (Search Results) */}
-      {searchResults.length > 0 && (
-        <div className="absolute top-24 left-6 z-10 max-w-sm">
-          <div className="bg-purple-900/80 backdrop-blur-xl rounded-2xl p-6 border border-amber-600/50 shadow-2xl shadow-amber-500/20">
-            <div className="flex items-center space-x-2 mb-4">
-              <ExternalLink className="w-5 h-5 text-amber-400" />
-              <h3 className="text-lg font-semibold text-amber-200">
-                Ancient Texts
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {searchResults.map((result, index) => (
-                <a
-                  key={index}
-                  href={result.uri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-3 bg-purple-800/50 rounded-xl hover:bg-purple-700/50 transition-all duration-200 group border border-amber-600/20"
-                >
-                  <div className="text-amber-400 group-hover:text-amber-300 text-sm font-medium line-clamp-2">
-                    {result.title}
-                  </div>
-                </a>
-              ))}
+            <div className="flex items-center space-x-3">
+              <Languages className="w-5 h-5 text-amber-400" />
+              <motion.select
+                whileFocus={{ scale: 1.02 }}
+                value={currentLanguage}
+                onChange={(e) => {
+                  setCurrentLanguage(e.target.value);
+                  stopRecording();
+                  setIsControlPanel(true);
+                }}
+                className="bg-slate-800/50 backdrop-blur-xl border border-amber-500/30 rounded-xl px-4 py-2 text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/50 transition-all duration-200 cursor-pointer"
+              >
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <option
+                    key={opt.code}
+                    value={opt.code}
+                    className="bg-slate-800"
+                  >
+                    {opt.label}
+                  </option>
+                ))}
+              </motion.select>
             </div>
           </div>
         </div>
-      )}
+      </motion.header>
 
-      {/* Main Magical Content Area */}
-      <main className="flex-1 h-full flex flex-col items-center justify-center md:px-6 py-0 relative z-10">
-        {/* Magical Image Preview */}
-        {diagnosePreview && (
-          <div className="mb-8 w-full max-w-md">
-            <div className="bg-purple-900/80 backdrop-blur-xl rounded-2xl p-6 border border-amber-600/50 shadow-2xl shadow-amber-500/20">
-              <div className="text-center mb-4">
-                <div className="inline-flex items-center space-x-2 text-amber-400 mb-2">
-                  <Camera className="w-5 h-5" />
-                  <span className="font-medium">Magical Specimen</span>
-                </div>
+      {/* Enhanced Search Results */}
+      <AnimatePresence>
+        {searchResults.length > 0 && (
+          <motion.div
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 100, damping: 20 }}
+            className="absolute top-24 left-6 z-10 max-w-sm"
+          >
+            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl p-6 border border-amber-500/30 shadow-2xl">
+              <div className="flex items-center space-x-3 mb-4">
+                <motion.div
+                  animate={{ rotate: [0, 360] }}
+                  transition={{
+                    duration: 20,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "linear",
+                  }}
+                >
+                  <ExternalLink className="w-5 h-5 text-amber-400" />
+                </motion.div>
+                <h3 className="text-lg font-semibold text-amber-200">
+                  Ancient Scrolls
+                </h3>
               </div>
-              <div className="relative overflow-hidden rounded-xl border border-amber-600/30">
-                <img
-                  src={diagnosePreview || "/placeholder.svg"}
-                  alt="Selected magical plant"
-                  className="w-full h-48 object-cover"
-                />
-                {diagnoseLoading && (
-                  <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                    <Wand2 className="w-8 h-8 text-amber-400 animate-spin" />
-                  </div>
-                )}
+              <div className="space-y-3">
+                {searchResults.map((result, index) => (
+                  <motion.a
+                    key={index}
+                    href={result.uri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="block p-4 bg-slate-800/50 rounded-xl hover:bg-slate-700/50 transition-all duration-200 group border border-amber-500/20 hover:border-amber-400/40"
+                    whileHover={{ scale: 1.02, x: 5 }}
+                  >
+                    <div className="text-amber-400 group-hover:text-amber-300 text-sm font-medium line-clamp-2">
+                      {result.title}
+                    </div>
+                  </motion.a>
+                ))}
               </div>
-              <p className="text-sm text-amber-300/70 text-center mt-3">
-                {diagnoseLoading
-                  ? "Consulting the ancient texts..."
-                  : "Specimen ready for divination"}
-              </p>
             </div>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Magical Dashboard */}
+      {/* Main Content Area */}
+      <main className="flex-1 h-full flex flex-col items-center justify-center md:px-6 py-0 relative z-10 pt-24">
+        {/* Enhanced Image Preview */}
+        <AnimatePresence>
+          {diagnosePreview && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 50 }}
+              className="mb-8 w-full max-w-md"
+            >
+              <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl p-6 border border-amber-500/30 shadow-2xl">
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center space-x-2 text-amber-400 mb-2">
+                    <Camera className="w-5 h-5" />
+                    <span className="font-semibold">Magical Specimen</span>
+                  </div>
+                </div>
+                <div className="relative overflow-hidden rounded-xl border border-amber-500/30">
+                  <img
+                    src={diagnosePreview || "/placeholder.svg"}
+                    alt="Selected magical plant"
+                    className="w-full h-48 object-cover"
+                  />
+                  {diagnoseLoading && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                      <MagicalOrb isActive={true} size={60} color="#fbbf24" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-amber-300/70 text-center mt-3 font-medium">
+                  {diagnoseLoading
+                    ? "Consulting the ancient texts..."
+                    : "Specimen ready for divination"}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Dashboard or Welcome */}
         {dashboardData.length > 0 ? (
-          <div className="w-full max-w-4xl h-full flex-1">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-4xl h-full flex-1"
+          >
             {dashboardError && (
-              <div className="mb-6 p-4 bg-red-900/50 backdrop-blur-xl border border-red-600/50 rounded-2xl text-red-200">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-6 p-4 bg-red-900/50 backdrop-blur-xl border border-red-500/50 rounded-2xl text-red-200"
+              >
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                  <span className="font-medium">Dark Magic Detected:</span>
+                  <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                  <span className="font-semibold">Dark Magic Detected:</span>
                   <span>{dashboardError}</span>
                 </div>
-              </div>
+              </motion.div>
             )}
             <DashboardView results={[...(dashboardData || [])].reverse()} />
-          </div>
+          </motion.div>
         ) : (
-          <>
-            {!diagnoseLoading && (
-              <div className="w-full h-full flex items-center justify-center flex-1 min-h-full">
-                <BlurText
-                  text="Mischief Managed!"
-                  delay={150}
-                  animateBy="words"
-                  direction="top"
-                  onAnimationComplete={() => {}}
-                  className="text-3xl text-amber-200 md:text-9xl font-semibold mb-8"
+          <div className="w-full h-full flex items-center justify-center flex-1 min-h-full">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1, ease: "easeOut" }}
+            >
+              <BlurText
+                text="Hey Mate!"
+                delay={150}
+                animateBy="words"
+                direction="top"
+                onAnimationComplete={() => {}}
+                className="text-4xl md:text-8xl lg:text-9xl font-bold text-white text-center"
+              />
+              {/* Floating magical elements around text */}
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-2 h-2 bg-amber-400 rounded-full"
+                  animate={{
+                    x: [0, Math.cos((i * Math.PI) / 3) * 100, 0],
+                    y: [0, Math.sin((i * Math.PI) / 3) * 100, 0],
+                    opacity: [0, 1, 0],
+                    scale: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Number.POSITIVE_INFINITY,
+                    delay: i * 0.3,
+                    ease: "easeInOut",
+                  }}
+                  style={{
+                    left: "50%",
+                    top: "50%",
+                  }}
                 />
-              </div>
-            )}
-          </>
+              ))}
+            </motion.div>
+          </div>
         )}
       </main>
 
-      <div
-        className={`fixed bottom-0 left-1/2 transition-all transform -translate-x-1/2 flex flex-col items-center justify-center z-50 ${
-          isControlPanel ? "translate-y-0" : " translate-y-[80%]"
-        }`}
+      {/* Enhanced Control Panel */}
+      <motion.div
+        className={`fixed bottom-0 left-1/2 transition-all transform -translate-x-1/2 flex flex-col items-center justify-center z-50`}
+        animate={{
+          y: isControlPanel ? 0 : "80%",
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        {/* Magical Control Panel */}
-        {!!status && (
-          <AnimatePresence>
+        <AnimatePresence>
+          {!!status && (
             <motion.div
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              initial={{ y: "100%", scale: 0.4 }}
-              exit={{ y: "100%", scale: 0.4 }}
-              animate={{ y: 0, scale: 1 }}
-              className="bg-purple-900/50 mb-4 backdrop-blur-xl relative w-min rounded-3xl p-8 border border-amber-600/50 shadow-2xl shadow-amber-500/20"
+              initial={{ y: 100, scale: 0.8, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 100, scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              className="relative mb-4 backdrop-blur-xl bg-slate-900/80 rounded-3xl p-8 border border-amber-500/30 shadow-2xl"
             >
-              <button
-                onClick={() => {
-                  setIsControlPanel(!isControlPanel);
-                }}
-                className={`absolute cursor-pointer top-0 bg-purple-900/50 backdrop-blur-xl border border-amber-600/50 shadow-2xl p-2 py-3 rounded-full aspect-square left-1/2 -translate-y-[40%] transform -translate-x-1/2 text-amber-400 text-sm hover:bg-amber-600/20 transition-all`}
+              {/* Panel toggle button */}
+              <motion.button
+                onClick={() => setIsControlPanel(!isControlPanel)}
+                className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900/90 backdrop-blur-xl border border-amber-500/30 rounded-full p-3 hover:bg-amber-500/20 transition-all duration-300"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
               >
-                {isControlPanel ? (
-                  <ChevronsDown size={25} className="" />
-                ) : (
-                  <ChevronsUp size={25} className="" />
-                )}
-              </button>
+                <motion.div
+                  animate={{ rotate: isControlPanel ? 0 : 180 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ChevronsDown size={20} className="text-amber-400" />
+                </motion.div>
+              </motion.button>
 
-              <div className="flex items-center justify-center space-x-6">
-                {/* Magical Camera Spell */}
-                <button
+              <div className="flex items-center justify-center space-x-8">
+                {/* Enhanced Camera Button */}
+                <MagicalButton
                   onClick={handleManualDiagnoseRequest}
                   disabled={diagnoseLoading}
-                  className="group relative cursor-pointer p-4 bg-gradient-to-br from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-amber-500/25"
+                  variant="warning"
+                  size="lg"
                 >
-                  <Camera className="w-6 h-6 text-purple-900" />
-                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </button>
+                  <Camera className="w-7 h-7 text-slate-900" />
+                </MagicalButton>
 
-                {/* Voice Magic Controls */}
-                <div className="flex items-center space-x-4">
+                {/* Enhanced Voice Controls */}
+                <div className="relative">
                   {isRecording ? (
-                    <button
-                      onClick={() => {
-                        stopRecording();
-                      }}
+                    <MagicalButton
+                      onClick={stopRecording}
                       disabled={!isRecording}
-                      className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                        isRecording
-                          ? "bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 hover:scale-110 hover:shadow-purple-500/50"
-                          : "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                      }`}
+                      variant="secondary"
+                      size="lg"
+                      className="!p-8"
                     >
-                      <MicOff className="w-8 h-8 text-amber-100" />
-                      {isRecording && (
-                        <div className="absolute inset-0 rounded-full bg-purple-400/20 animate-pulse" />
-                      )}
-                    </button>
+                      <MicOff className="w-8 h-8 text-white" />
+                    </MagicalButton>
                   ) : (
-                    <button
-                      onClick={() => {
-                        startRecording();
-                      }}
+                    <MagicalButton
+                      onClick={startRecording}
                       disabled={isRecording}
-                      className={`group relative p-6 rounded-full transition-all duration-300 transform shadow-2xl ${
-                        isRecording
-                          ? "bg-gradient-to-br from-gray-500 to-gray-600 cursor-not-allowed"
-                          : " cursor-pointer bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 hover:scale-110 hover:shadow-red-500/50"
-                      }`}
+                      variant="danger"
+                      size="lg"
+                      className="!p-8"
                     >
-                      <Mic className="w-8 h-8 text-amber-100" />
-                      {!isRecording && (
-                        <div className="absolute inset-0 scale-75 rounded-full bg-red-400/20 animate-ping" />
-                      )}
-                    </button>
+                      <Mic className="w-8 h-8 text-white" />
+                    </MagicalButton>
+                  )}
+
+                  {/* Recording indicator */}
+                  {isRecording && (
+                    <motion.div
+                      className="absolute -top-2 -right-2 w-4 h-4 bg-red-400 rounded-full"
+                      animate={{
+                        scale: [1, 1.3, 1],
+                        opacity: [1, 0.5, 1],
+                      }}
+                      transition={{
+                        duration: 1,
+                        repeat: Number.POSITIVE_INFINITY,
+                      }}
+                    />
                   )}
                 </div>
               </div>
             </motion.div>
-          </AnimatePresence>
-        )}
+          )}
+        </AnimatePresence>
 
-        {!status && (
-          <AnimatePresence>
+        {/* Connection Status */}
+        <AnimatePresence>
+          {!status && (
             <motion.div
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              initial={{ y: "100%", scale: 0.4 }}
-              exit={{ y: "100%", scale: 0.4 }}
-              animate={{ y: 0, scale: 1 }}
-              className="inline-flex mb-4 items-center space-x-2 px-4 py-2 bg-amber-900/50 backdrop-blur-xl border border-amber-600/50 rounded-full text-amber-200"
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="inline-flex mb-4 items-center space-x-3 px-6 py-3 bg-slate-900/80 backdrop-blur-xl border border-amber-500/30 rounded-full text-amber-200"
             >
-              <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-              <span>Awakening the Magic...</span>
+              <motion.div
+                className="w-3 h-3 bg-amber-400 rounded-full"
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [0.5, 1, 0.5],
+                }}
+                transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+              />
+              <span className="font-medium">Awakening the Magic...</span>
             </motion.div>
-          </AnimatePresence>
-        )}
-      </div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      {/* Magical Camera Modal */}
+      {/* Camera Modal */}
       <CameraDiagnosisModal
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
